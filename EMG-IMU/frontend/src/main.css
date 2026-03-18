@@ -1,0 +1,101 @@
+@import "./CSS/colors.css";
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    background-color: var(--fourth);
+}
+
+#root {
+    min-height: 100vh;
+}
+
+.app-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: var(--primary);
+}
+
+.app-header {
+    height: 72px;
+    padding: 0 1.2rem;
+    border-bottom: 2px solid var(--border);
+    background: linear-gradient(90deg, var(--primary), var(--second));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    max-width: 60px;
+}
+
+.header-nav {
+    display: flex;
+    gap: 0.8rem;
+}
+
+.header-nav a {
+    text-decoration: none;
+    color: var(--fourth);
+    font-weight: 600;
+    padding: 0.42rem 0.8rem;
+    border: 1px solid rgba(238, 217, 185, 0.45);
+    border-radius: 999px;
+}
+
+.header-nav a:hover,
+.header-nav a:focus-visible {
+    background-color: var(--fourth);
+    color: var(--primary);
+    outline: none;
+}
+
+.app-content {
+    flex: 1;
+    min-height: 0;
+}
+
+.app-footer {
+    min-height: 52px;
+    padding: 0.75rem 1rem;
+    border-top: 2px solid var(--border);
+    background-color: rgba(94, 0, 6, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+@media (max-width: 760px) {
+    .app-header {
+        height: auto;
+        padding: 0.75rem 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.6rem;
+    }
+
+    .header-nav {
+        width: 100%;
+    }
+
+    .header-nav a {
+        flex: 1;
+        text-align: center;
+    }
+
+    .app-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

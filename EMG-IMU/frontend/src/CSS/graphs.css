@@ -1,0 +1,100 @@
+@import "colors.css";
+
+.graphs {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    height: 100%;
+    padding: 30px;
+    position: relative;
+    overflow: hidden;
+}
+
+.IMUs {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.IMU {
+    border: 5px solid var(--border);
+}
+
+.EMGs {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.EMG1 {
+    border: 5px solid var(--border);
+}
+
+.EMG2 {
+    border: 5px solid var(--border);
+}
+
+.buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background-color: var(--third);
+    padding: 20px;
+    border-radius: 20px;
+    height: 100%;
+    position: absolute;
+    top: 20px;
+    right: 0;
+    transform: translateX(calc(100% - 44px));
+    transition: transform 0.3s ease-in-out;
+    z-index: 10;
+}
+
+.buttons:hover,
+.buttons:focus-within {
+    transform: translateX(0);
+}
+
+.buttons .button {
+    color: #090909;
+    padding: 0.7em 1.7em;
+    font-size: 18px;
+    border-radius: 0.5em;
+    background: #e8e8e8;
+    cursor: pointer;
+    border: 1px solid #e8e8e8;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+/* https://uiverse.io/ke1221/ancient-walrus-24 */
+button {
+    color: var(--fourth);
+    padding: 0.7em 1.7em;
+    font-size: 18px;
+    border-radius: 0.5em;
+    background: var(--primary);
+    cursor: pointer;
+    border: 1px solid var(--second);
+    transition: all 0.3s;
+}
+
+button:active {
+    color: var(--primary);
+    box-shadow: inset 4px 4px 12px var(--second), inset -4px -4px 12px var(--second);
+}
+
+.IMUs div {
+    height: 625px;
+    width: 225px;
+    background-color: #000000;
+}
+
+.EMGs div {
+    height: 300px;
+    width: 550px;
+    background-color: #000000;
+}

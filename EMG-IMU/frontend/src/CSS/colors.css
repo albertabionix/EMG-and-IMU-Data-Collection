@@ -1,0 +1,8 @@
+:root {
+    --primary: #5E0006;
+    --second: #9B0F06;
+    --third: #D53E0F;
+    --fourth: #EED9B9;
+
+    --border: var(--primary);
+}
