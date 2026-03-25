@@ -192,7 +192,7 @@ function Graphs() {
                 <section className="buttons">
                     <button>Record</button>
                     <button>Stop</button>
-                    <button>Rename</button>
+                    <button>Import CSV</button>
                     <button>Change Port</button>
                     <Link className="button" to="/">Back</Link>
                 </section>
