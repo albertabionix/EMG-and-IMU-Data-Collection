@@ -10,6 +10,16 @@ except Exception as error:
         "pyserial is not available (or a conflicting 'serial' module is being imported). "
         "Run: python -m pip uninstall -y serial ; python -m pip install pyserial"
     ) from error
+    
+import cv2
+import time
+import numpy as np
+
+from cv_processor import (
+    detect_aruco,
+    compute_joint_angles,
+    compute_linear_kinematics
+)
 
 COMPORT = os.getenv("SERIAL_PORT", "COM4")
 HOST = os.getenv("HOST", "127.0.0.1")
@@ -66,8 +76,62 @@ def read_serial():
             print(f"Unexpected serial loop error: {error}")
             socketio.sleep(1)
 
+# CVKAS
+            
+def camera_loop():
+    cam = cv2.VideoCapture(0)
+
+    if not cam.isOpened():
+        print("Camera failed to open")
+        return
+
+    print("Camera started")
+
+    while True:
+        ret, frame = cam.read()
+
+        if not ret:
+            socketio.sleep(0.03)
+            continue
+
+        detections = detect_aruco(frame)
+
+        angles = compute_joint_angles(detections)
+
+        payload = {
+            "angles": angles,
+            "markers": []
+        }
+
+        now = time.time()
+
+        for marker_id, data in detections.items():
+            pos, vel, acc = compute_linear_kinematics(
+                marker_id,
+                data["center"],
+                now
+            )
+
+            payload["markers"].append({
+                "id": marker_id,
+                "position": pos.tolist(),
+                "velocity": (
+                    None if vel is None
+                    else float(np.linalg.norm(vel))
+                ),
+                "acceleration": (
+                    None if acc is None
+                    else float(np.linalg.norm(acc))
+                )
+            })
+
+        socketio.emit("cv_data", payload)
+
+        socketio.sleep(0.03)
+
 if __name__ == "__main__":
     socketio.start_background_task(read_serial)
+    socketio.start_background_task(camera_loop)
     socketio.run(
         app,
         host=HOST,
