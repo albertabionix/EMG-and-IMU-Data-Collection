@@ -14,7 +14,7 @@ An application to collect data EMG and IMU data using JS, HTML, and CSS.
    .\venv\Scripts\activate
    pip install -r requirements.txt
    ```
-3. Run Django backend:
+3. Run EMG backend:
    ```bash
    cd .\EMG-IMU\backend\
    python main.py
