@@ -113,6 +113,15 @@ function parseSensorPacket(packet) {
         .filter((value) => Number.isFinite(value));
 }
 
+function changePort() {
+    let 
+    const response = await fetch('http://localhost:5000/api/data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: 'Alice', })
+    });
+    const data = await response.json();
+}
 
 
 function Graphs() {
