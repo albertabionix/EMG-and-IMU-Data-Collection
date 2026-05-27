@@ -10,6 +10,7 @@ import logo from "./assets/bionix_logo.png"
 function AppLayout() {
 	return (
 		<div className="app-shell">
+			{/*The header of the site*/}
 			<header className="app-header">
 				<img className="logo" src={logo}></img>
 				<nav className="header-nav" aria-label="Main navigation">
@@ -18,6 +19,7 @@ function AppLayout() {
 			</header>
 
 			<main className="app-content">
+				{/*The main content of the site with all the different pages*/}
 				<Routes>
 					<Route path="/" element={<Home />} />
 					<Route path="/graphs" element={<Graphs />} />
@@ -27,6 +29,7 @@ function AppLayout() {
 			</main>
 
 			<footer className="app-footer">
+				{/*Footer of the website*/}
 				<span>Alberta Bionix</span>
 				<span>EMG and IMU Data Collector</span>
 			</footer>

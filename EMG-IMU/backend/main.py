@@ -3,6 +3,7 @@ import os
 from flask import Flask, request, jsonify, Response
 from flask_socketio import SocketIO
 
+# Checks if serial is in the virtual environment 
 try:
     from serial import Serial, SerialException
 except Exception as error:
@@ -23,6 +24,7 @@ from cv_processor import (
     compute_linear_kinematics
 )
 
+# So you can keep changing the comport
 global COMPORT
 
 COMPORT = os.getenv("SERIAL_PORT", "COM4")
@@ -43,11 +45,13 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return response
 
+#  Checks if camera is running
 ser = None
 camera_stop_event = None
 camera_task_running = False
 camera_index_in_use = None
 
+# Checks if the serial is connected to the comport
 def connect_serial():
     global ser
     try:
@@ -59,6 +63,7 @@ def connect_serial():
         ser = None
         return False
 
+# Connects the socketio (Data is exchanged instantly by emitting and listening to custom events)
 @socketio.on("connect")
 def handle_connect():
     print("Client connected")
