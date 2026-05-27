@@ -1,8 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './main.css'
-import Home from './Pages/Home.jsx'
-import Graphs from './Pages/Graphs.jsx'
+import Home from './Pages/home.jsx'
+import Graphs from './Pages/graphs.jsx'
+import Help from './Pages/help.jsx'
 import { HashRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
 import logo from "./assets/bionix_logo.png"
 
@@ -20,6 +21,7 @@ function AppLayout() {
 				<Routes>
 					<Route path="/" element={<Home />} />
 					<Route path="/graphs" element={<Graphs />} />
+					<Route path="/help" element={<Help />} />
 					<Route path="*" element={<Navigate to="/" replace />} />
 				</Routes>
 			</main>

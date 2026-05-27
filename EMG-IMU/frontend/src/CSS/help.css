@@ -1,0 +1,31 @@
+@import "colors.css";
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+.help-section {
+    display: flex;
+    flex-direction: column;
+    padding: 10rem;
+    margin: 0 0;
+
+
+    h1 {
+        font-family: 'Chakra Petch', sans-serif;
+        font-size: 36px;
+        margin: 0 0;
+    }
+
+    h2 {
+        font-family: 'Chakra Petch', sans-serif;
+        font-size: 28px;
+    }
+
+    ul {
+        margin-top: -20px;
+    }
+
+    li {
+        font-family: 'Chakra Petch', sans-serif;
+        font-size: 24px;
+    }
+
+}

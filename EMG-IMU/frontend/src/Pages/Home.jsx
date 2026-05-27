@@ -11,7 +11,7 @@ return (
 			</section>
 			<section className="work-block">
 				<Link className="button" to="/graphs">Start</Link>
-				<Link className="button" to="/">Help</Link>
+				<Link className="button" to="/help">Help</Link>
 				<a className="button" href="https://drive.google.com" target="_blank" rel="noreferrer">Google Drive</a>
 			</section>
 		</section>

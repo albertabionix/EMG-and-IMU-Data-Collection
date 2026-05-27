@@ -9,7 +9,10 @@ body {
     min-height: 100vh;
     margin: 0;
     padding: 0;
-    background-color: var(--fourth);
+    background:
+		radial-gradient(circle at 18% 20%, rgba(213, 62, 15, 0.3), transparent 45%),
+		radial-gradient(circle at 82% 80%, rgba(155, 15, 6, 0.22), transparent 40%),
+		var(--fourth);
 }
 
 #root {
@@ -25,7 +28,7 @@ body {
 
 .app-header {
     height: 72px;
-    padding: 0 1.2rem;
+    padding: 2.5rem 2rem ;
     border-bottom: 2px solid var(--border);
     background: linear-gradient(90deg, var(--primary), var(--second));
     display: flex;
@@ -65,37 +68,14 @@ body {
 
 .app-footer {
     min-height: 52px;
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 2rem;
     border-top: 2px solid var(--border);
-    background-color: rgba(94, 0, 6, 0.08);
+    background: linear-gradient(90deg, var(--primary), var(--second));
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
     font-size: 0.95rem;
     font-weight: 600;
-}
-
-@media (max-width: 760px) {
-    .app-header {
-        height: auto;
-        padding: 0.75rem 1rem;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.6rem;
-    }
-
-    .header-nav {
-        width: 100%;
-    }
-
-    .header-nav a {
-        flex: 1;
-        text-align: center;
-    }
-
-    .app-footer {
-        flex-direction: column;
-        align-items: flex-start;
-    }
+    color: var(--fourth);
 }
