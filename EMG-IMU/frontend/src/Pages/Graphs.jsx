@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { io } from "socket.io-client";
 import '../CSS/graphs.css'
@@ -114,8 +114,8 @@ function parseSensorPacket(packet) {
         .filter((value) => Number.isFinite(value));
 }
 
-async function changePort() {
-    const newPort = prompt("Enter your port name");
+async function changePort(portName) {
+    const newPort = portName || prompt("Enter your port name");
     if (!newPort) {
         return;
     }
@@ -176,8 +176,15 @@ function Graphs() {
     const [latestValues, setLatestValues] = useState([]);
     const [cameraImage, setCameraImage] = useState(null);
     const [cvStatus, setCvStatus] = useState('stopped');
+    const { state } = useLocation();
 
     useEffect(() => {
+        if (state?.port) {
+            changePort(state.port).catch((error) => {
+                console.error("Failed to apply selected port:", error);
+            });
+        }
+
         const onConnect = () => {
             console.log("Socket connected to backend");
         };
@@ -233,7 +240,7 @@ function Graphs() {
             socket.off("cv_status");
             socket.disconnect();
         };
-    }, []);
+    }, [state?.port]);
 
     const channelCount = Math.max(series.length, 2);
 
