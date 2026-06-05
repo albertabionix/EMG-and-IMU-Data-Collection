@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { io } from "socket.io-client";
 import '../CSS/graphs.css'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://127.0.0.1:5000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL;
 const socket = io(SOCKET_URL, {
     transports: ["polling", "websocket"],
     autoConnect: false,
@@ -113,13 +114,77 @@ function parseSensorPacket(packet) {
         .filter((value) => Number.isFinite(value));
 }
 
+async function changePort(portName) {
+    const newPort = portName || prompt("Enter your port name");
+    if (!newPort) {
+        return;
+    }
 
+    const response = await fetch(`${API_BASE_URL}/change-port`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: newPort })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to change port: ${response.status}`);
+    }
+
+    await response.json();
+}
+
+async function openCamera() {
+    await fetch('http://localhost:5000/api/camera/start', { method: 'POST' });
+}
+
+function record() {
+
+}
+
+let elapsed = 0;
+let running = false;
+let intervalId = null;
+let startTime = null;
+
+const element = document.getElementById("intro");
+
+function start() {
+    if (running) return;
+    running = true;
+    startTime = Date.now() - elapsed;
+    intervalId = setInterval(() => {
+        elapsed = Date.now() - startTime;
+        document.getElementById("timer").innerHTML = formatTime(elapsed);
+    }, 10);
+}
+
+function stop() {
+    running = false;
+    clearInterval(intervalId);
+    elapsed = 0;
+}
+
+function formatTime(ms) {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    const centiseconds = Math.floor((ms % 1000) / 10);
+    return `${minutes}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
+}
 
 function Graphs() {
     const [series, setSeries] = useState([]);
     const [latestValues, setLatestValues] = useState([]);
+    const [cameraImage, setCameraImage] = useState(null);
+    const [cvStatus, setCvStatus] = useState('stopped');
+    const { state } = useLocation();
 
     useEffect(() => {
+        if (state?.port) {
+            changePort(state.port).catch((error) => {
+                console.error("Failed to apply selected port:", error);
+            });
+        }
+
         const onConnect = () => {
             console.log("Socket connected to backend");
         };
@@ -154,47 +219,74 @@ function Graphs() {
         socket.on("connect", onConnect);
         socket.on("connect_error", onConnectError);
         socket.on("sensor_data", onSensorData);
+        socket.on("cv_frame", (payload) => {
+            if (payload && payload.image) {
+                setCameraImage(payload.image);
+            }
+        });
+
+        socket.on("cv_status", (payload) => {
+            if (payload && payload.status) {
+                setCvStatus(payload.status);
+            }
+        });
         socket.connect();
 
         return () => {
             socket.off("connect", onConnect);
             socket.off("connect_error", onConnectError);
             socket.off("sensor_data", onSensorData);
+            socket.off("cv_frame");
+            socket.off("cv_status");
             socket.disconnect();
         };
-    }, []);
+    }, [state?.port]);
 
     const channelCount = Math.max(series.length, 2);
 
     return (
         <>
-            <section className="graphs">
-                <section className="IMUs">
-                    <section className="IMU">
-                        <div></div>
-                    </section>
-                    <section className="IMU">
-                        <div></div>
-                    </section>
-                    <section className="IMU">
-                        <div></div>
-                    </section>
-                </section>
-                <section className="EMGs">
-                    {Array.from({ length: channelCount }).map((_, index) => (
-                        <section className="EMGPanel" key={`emg-${index}`}>
-                            <div className="emg-graph">
-                                {renderChartWithAxes(series[index] || [], index)}
-                            </div>
+            <section className='main-section'>
+                <p id='timer'>0:00.00</p>
+                <section className="graphs">
+                    <section className="IMUs">
+                        <section className="IMU">
+                            <div></div>
                         </section>
-                    ))}
-                </section>
-                <section className="buttons">
-                    <button>Record</button>
-                    <button>Stop</button>
-                    <button>Import CSV</button>
-                    <button>Change Port</button>
-                    <Link className="button" to="/">Back</Link>
+                        <section className="IMU">
+                            <div></div>
+                        </section>
+                        
+                    </section>
+                    <section className="EMGs">
+                        {Array.from({ length: channelCount }).map((_, index) => (
+                            <section className="EMGPanel" key={`emg-${index}`}>
+                                <div className="emg-graph">
+                                    {renderChartWithAxes(series[index] || [], index)}
+                                </div>
+                            </section>
+                        ))}
+                    </section>
+                    <div className="camera-panel">
+                        <div className="camera-controls">
+                            <button onClick={async () => { await fetch(`${API_BASE_URL}/camera/start`, { method: 'POST' }); }}>Start Camera</button>
+                            <button onClick={async () => { await fetch(`${API_BASE_URL}/camera/stop`, { method: 'POST' }); }}>Stop Camera</button>
+                        </div>
+                        <div className="camera-preview">
+                            {cameraImage ? (
+                                <img src={cameraImage} alt="Camera Preview" />
+                            ) : (
+                                <div className="camera-placeholder">No preview</div>
+                            )}
+                        </div>
+                    </div>
+                    <section className="buttons">
+                        <button onClick={start}>Record</button>
+                        <button onClick={stop}>Stop</button>
+                        <button>Import CSV</button>
+                        <button onClick={changePort}>Change Port</button>
+                        <Link className="button" to="/">Back</Link>
+                    </section>
                 </section>
             </section>
         </>
