@@ -11,9 +11,9 @@ navigation.
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
-import Home from './Pages/home.jsx'
-import Graphs from './Pages/Graphs/graphs.jsx'
-import Help from './Pages/help.jsx'
+import Home from './Pages/Home/Home.jsx'
+import Graphs from './Pages/GraphDashboard/GraphDashboard.jsx'
+import Help from './Pages/Help/Help.jsx'
 import logo from "./assets/bionix_logo.png"
 import './main.css'
 

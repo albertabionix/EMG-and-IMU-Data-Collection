@@ -1,7 +1,11 @@
+/*
+GraphDashboard.jsx
+
+*/
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { io } from "socket.io-client";
-import '../CSS/graphs.css'
+import './GraphDashboard.css'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://127.0.0.1:5000";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL;

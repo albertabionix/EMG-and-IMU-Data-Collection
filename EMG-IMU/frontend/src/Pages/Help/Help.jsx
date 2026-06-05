@@ -1,5 +1,10 @@
+/*
+Help.jsx
+
+*/
+
 import { Link } from 'react-router-dom'
-import '../CSS/help.css'
+import './Help.css'
 
 function Help() {
 return (

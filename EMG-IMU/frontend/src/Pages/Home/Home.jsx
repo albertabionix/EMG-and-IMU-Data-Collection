@@ -1,0 +1,102 @@
+/*
+Home.jsx
+
+*/
+
+import { Link, useNavigate } from 'react-router-dom'
+import { useState } from "react";
+
+import './Home.css'
+
+import { HomeInput, HomeButton, PortsDropdown, ConfirmButton } from '../../components'
+
+
+function Home() {
+    // States
+    const [showInputs, setShowInputs] = useState(false);
+    const [name, setName] = useState("");
+    const [port, setPort] = useState('COM4');
+	const [ID, setID] = useState('');
+    const [error, setError] = useState('')
+
+    const navigate = useNavigate();
+
+    // Opens and closes the start menu
+    function handleStart() {
+        if (!showInputs) {
+            setShowInputs(true);
+        } else {
+            setShowInputs(false);
+        }
+    }
+
+    // Opens the help page
+    function handleHelp() {
+        navigate('/help')
+    }
+
+    // When the submit button is pressed after the name and ID are chosen go to the graphs page.
+    function submit() {
+        if (!name) {
+            setError("Missing the experiment name")
+            return
+        }
+        if (!ID) {
+            setError("Missing the ID name")
+            return
+        }
+        navigate('/graphs', { state: { name, port, ID } })
+    }
+
+    return (
+        <>
+            <section className="main">
+                <section className="title-block"> 
+                    <h1 className="title">EMG and IMU Data Collector</h1>
+                    <h2 className="subtitle">Alberta Bionix</h2>
+                </section>
+                <section className="work-block">
+                    <section className='button-flex'>
+                        <HomeButton label='Start' onClick={handleStart}/>
+                        <HomeButton label='Help' onClick={handleHelp}/>
+                        <HomeButton label='Authenticate'/>
+                    </section>
+                    {/* appears below buttons when Start is clicked */}
+                    {showInputs && (
+                        <section id="start-section">
+                            <HomeInput 
+                                label='Experiment'
+                                type='text'
+                                name='experiment'
+                                placeholder=''
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                            />	
+                            <HomeInput 
+                                label='ID Number'
+                                type='text'
+                                name='id number'
+                                placeholder=''
+                                value={ID}
+                                onChange={(e) => setID(e.target.value)}
+                            />
+                            <PortsDropdown
+                                label='Port'
+                                value={port}
+                                onChange={(e) => setPort(e.target.value)}
+                            />
+                            {error && <p className='error'>{error}</p>}
+                            <ConfirmButton
+                                label='Submit'
+                                name='button'
+                                onClick={submit}
+                            />
+                        </section>
+                    )}
+                </section>
+            </section>
+        </>
+    );
+}
+
+export default Home
