@@ -1,16 +1,25 @@
+/*
+main.jsx
+This is the start of the program where the header and footer is found. 
+The content is in the middle where there are multiple routes connecting 
+to all the pages. The index.html opens this file. <StrictMode> is a 
+tool that intentionally runs certain things twice to help catch bugs.
+<HashRouter> enables client side routing so it lets the browser handle 
+navigation.
+*/
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './main.css'
-import Home from './Pages/home.jsx'
-import Graphs from './Pages/graphs.jsx'
-import Help from './Pages/help.jsx'
 import { HashRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
+import Home from './Pages/home.jsx'
+import Graphs from './Pages/Graphs/graphs.jsx'
+import Help from './Pages/help.jsx'
 import logo from "./assets/bionix_logo.png"
+import './main.css'
 
 function AppLayout() {
 	return (
 		<div className="app-shell">
-			{/*The header of the site*/}
 			<header className="app-header">
 				<img className="logo" src={logo}></img>
 				<nav className="header-nav" aria-label="Main navigation">
@@ -19,7 +28,6 @@ function AppLayout() {
 			</header>
 
 			<main className="app-content">
-				{/*The main content of the site with all the different pages*/}
 				<Routes>
 					<Route path="/" element={<Home />} />
 					<Route path="/graphs" element={<Graphs />} />
@@ -29,7 +37,6 @@ function AppLayout() {
 			</main>
 
 			<footer className="app-footer">
-				{/*Footer of the website*/}
 				<span>Alberta Bionix</span>
 				<span>EMG and IMU Data Collector</span>
 			</footer>
