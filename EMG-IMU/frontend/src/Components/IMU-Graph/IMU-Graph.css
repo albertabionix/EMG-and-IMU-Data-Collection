@@ -1,0 +1,9 @@
+.IMU {
+    border: 5px solid var(--border);
+}
+
+.IMUs div {
+    height: 625px;
+    width: 300px;
+    background-color: #000000;
+}

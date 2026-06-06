@@ -1,7 +1,6 @@
 @import "../../css/colors.css";
 @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap');
 
-
 .main-section {
     width: 100%;
     height: 87vh;
@@ -28,97 +27,12 @@
     gap: 20px;
 }
 
-.IMU {
-    border: 5px solid var(--border);
-}
-
-.EMGs {
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.EMGPanel {
-    border: 5px solid var(--border);
-    background-color: #000000;
-    color: #f2f2f2;
-    width: 550px;
-    padding: 10px;
-    box-sizing: border-box;
-}
-
-.emg-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-}
-
-.emg-header h3 {
-    margin: 0;
-    font-size: 18px;
-}
-
-.emg-header span {
-    font-size: 14px;
-    color: #9dd1ff;
-    font-weight: 600;
-}
-
-.emg-graph {
-    height: 275px;
-    width: 100%;
-}
-
-.emg-graph svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-.emg-line {
-    fill: none;
-    stroke: #14f195;
-    stroke-width: 1.2;
-    vector-effect: non-scaling-stroke;
-}
-
-.emg-chart .grid-line {
-    stroke: #333333;
-    stroke-width: 0.3;
-    opacity: 0.6;
-}
-
-.emg-chart .axis {
-    stroke: #888888;
-    stroke-width: 0.5;
-}
-
-.emg-chart .tick {
-    stroke: #888888;
-    stroke-width: 0.4;
-}
-
-.emg-chart .tick-label {
-    fill: #9dd1ff;
-    font-family: monospace;
-    font-size: 3.2px;
-}
-
-.emg-chart .axis-label {
-    fill: #9dd1ff;
-    font-family: monospace;
-    font-weight: bold;
-    font-size: 4px;
-}
-
 .buttons {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 15px;
     background-color: var(--third);
-    padding: 20px;
+    padding: 15px;
     border-radius: 20px;
     height: 100%;
     position: absolute;
@@ -134,57 +48,9 @@
     transform: translateX(0);
 }
 
-.buttons .button {
-    color: #090909;
-    padding: 0.7em 1.7em;
-    font-size: 18px;
-    border-radius: 0.5em;
-    background: #e8e8e8;
-    cursor: pointer;
-    border: 1px solid #e8e8e8;
-    text-decoration: none;
-    display: inline-block;
-    text-align: center;
-}
-
-/* https://uiverse.io/ke1221/ancient-walrus-24 */
-button {
-    color: var(--fourth);
-    padding: 0.7em 1.7em;
-    font-size: 18px;
-    border-radius: 0.5em;
-    background: var(--primary);
-    cursor: pointer;
-    border: 1px solid var(--second);
-    transition: all 0.3s;
-}
-
-button:active {
-    color: var(--primary);
-    box-shadow: inset 4px 4px 12px var(--second), inset -4px -4px 12px var(--second);
-}
-
-.button {
-    color: var(--fourth);
-    padding: 0.7em 1.7em;
-    font-size: 18px;
-    border-radius: 0.5em;
-    background: var(--primary);
-    cursor: pointer;
-    border: 1px solid var(--second);
-    transition: all 0.3s;
-    font-family: 'Chakra Petch', sans-serif;
-}
-
 .button:active {
     color: var(--primary);
     box-shadow: inset 4px 4px 12px var(--second), inset -4px -4px 12px var(--second);
-}
-
-.IMUs div {
-    height: 625px;
-    width: 300px;
-    background-color: #000000;
 }
 
 .camera-panel button {
@@ -214,12 +80,4 @@ button:active {
 .camera-placeholder {
     height: auto;
     width: auto;
-}
-
-#timer {
-    font-size: 32px;
-    font-weight: 600;
-    font-family: Arial, Helvetica, sans-serif;
-    text-align: center;
-    margin: 10px 0;
 }

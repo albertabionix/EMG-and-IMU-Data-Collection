@@ -1,0 +1,19 @@
+.graphbutton-section {
+    /* https://uiverse.io/ke1221/ancient-walrus-24 */
+    button {
+        width: 150px;
+        color: var(--fourth);
+        padding: 0.7em 1.7em;
+        font-size: 18px;
+        border-radius: 0.5em;
+        background: var(--primary);
+        cursor: pointer;
+        border: 1px solid var(--second);
+        transition: all 0.3s;
+    }
+
+    button:active {
+        color: var(--primary);
+        box-shadow: inset 4px 4px 12px var(--second), inset -4px -4px 12px var(--second);
+    }
+}
