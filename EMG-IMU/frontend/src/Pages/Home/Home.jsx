@@ -1,6 +1,10 @@
 /*
-Home.jsx
-
+    Home.jsx
+    This is the beginning of the program with the pages:
+        Graphs
+        Help
+        Authenticate
+    Sends the name, ID, and port to the graphs page.
 */
 
 import { Link, useNavigate } from 'react-router-dom'

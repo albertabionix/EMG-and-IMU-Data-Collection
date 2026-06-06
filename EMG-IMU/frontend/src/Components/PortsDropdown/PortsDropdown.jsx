@@ -1,6 +1,6 @@
 /*
-PortsDropdown.jsx
-
+    PortsDropdown.jsx
+    This is a dropdown of all the possible ports.
 */
 import React from 'react';
 import './PortsDropdown.css'

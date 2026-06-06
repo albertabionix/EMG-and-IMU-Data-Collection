@@ -1,3 +1,7 @@
+/*
+    GraphButton.jsx
+    This is used for the buttons on the home page.
+*/
 import React from 'react';
 import './HomeButton.css'
 

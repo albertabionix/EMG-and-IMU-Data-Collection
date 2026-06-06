@@ -1,11 +1,9 @@
 /*
-main.jsx
-This is the start of the program where the header and footer is found. 
-The content is in the middle where there are multiple routes connecting 
-to all the pages. The index.html opens this file. <StrictMode> is a 
-tool that intentionally runs certain things twice to help catch bugs.
-<HashRouter> enables client side routing so it lets the browser handle 
-navigation.
+	main.jsx
+	This is the start of the program where the header and footer is found. 
+	The content is in the middle where there are multiple routes connecting to all the pages. 
+	The index.html opens this file. <StrictMode> is a tool that intentionally runs certain things twice to help catch bugs.
+	<HashRouter> enables client side routing so it lets the browser handle navigation.
 */
 
 import { StrictMode } from 'react'

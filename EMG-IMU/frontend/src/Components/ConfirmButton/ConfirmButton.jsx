@@ -1,6 +1,6 @@
 /*
-ConfirmButton.jsx
-
+    ConfirmButton.jsx
+    This is used to confirm the experiment, ID, and port on the home page.
 */
 import React from 'react';
 import './ConfirmButton.css'

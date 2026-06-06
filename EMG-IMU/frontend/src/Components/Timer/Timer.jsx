@@ -1,3 +1,7 @@
+/*
+    Timer.jsx
+    This is used to track the time of the experiment when record is pressed.
+*/
 import React from 'react';
 import { useState, useRef, useImperativeHandle, forwardRef } from 'react'
 

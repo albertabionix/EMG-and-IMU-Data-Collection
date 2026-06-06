@@ -1,3 +1,7 @@
+/*
+    GraphButton.jsx
+    This is used for the inputs for the home page.
+*/
 import React from 'react';
 import './HomeInput.css'
 

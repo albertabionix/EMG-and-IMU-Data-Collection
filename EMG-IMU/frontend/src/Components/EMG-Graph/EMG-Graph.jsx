@@ -1,6 +1,6 @@
 /*
-EMGChart.jsx
-Handles all EMG data reading, parsing, and rendering.
+    EMG-Graph.jsx
+    This displays both EMGs and are parsed and built in real time using sockets.
 */
 import { useEffect, useState } from 'react'
 import { io } from 'socket.io-client'
@@ -14,10 +14,14 @@ const AXIS_MIN_X = 12
 const AXIS_MAX_X = 200
 const AXIS_VIEWBOX = '-12 0 224 100'
 
+// —— socket ——
+
 const socket = io(SOCKET_URL, {
     transports: ['polling', 'websocket'],
     autoConnect: false,
 })
+
+// —— helpers ——
 
 function buildPoints(values) {
     if (values.length <= 1) {
@@ -37,6 +41,8 @@ function buildPoints(values) {
         })
         .join(' ')
 }
+
+// 
 
 function parseSensorPacket(packet) {
     if (!packet || packet.raw == null) return []
@@ -110,6 +116,8 @@ function EMGChart({ values, channelIndex }) {
         </svg>
     )
 }
+
+// —— component ——
 
 const EMGGraph = ({ series }) => {
     const channelCount = Math.max(series.length, 2)

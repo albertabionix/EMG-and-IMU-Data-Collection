@@ -1,6 +1,6 @@
 /*
-Help.jsx
-
+	Help.jsx
+	This is the extra help page so researchers can get extra help when needed when things are not working.
 */
 
 import { Link } from 'react-router-dom'
