@@ -5,7 +5,7 @@
         Socket: Open a two-way interactive communication session between the user's browser and a server without having to poll.
     Owns the single socket connection for the page.
     Passes data down to child components as props.
- */
+*/
 
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useRef } from 'react'
@@ -15,7 +15,7 @@ import './GraphDashboard.css'
 
 import { Camera, EMGGraph, GraphButton, IMUGraph, Timer } from '../../components'
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000'
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000' // 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
 
 const MAX_SAMPLES = 120

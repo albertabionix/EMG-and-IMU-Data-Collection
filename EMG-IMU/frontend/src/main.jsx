@@ -9,17 +9,18 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
-import Home from './Pages/Home/Home.jsx'
-import Graphs from './Pages/GraphDashboard/GraphDashboard.jsx'
-import Help from './Pages/Help/Help.jsx'
-import logo from "./assets/bionix_logo.png"
+
+import { GraphDashboard, Home, Help } from './Pages'
+
+import { Logo } from "./assets/"
+
 import './main.css'
 
 function AppLayout() {
 	return (
 		<div className="app-shell">
 			<header className="app-header">
-				<img className="logo" src={logo}></img>
+				<img className="logo" src={Logo}></img>
 				<nav className="header-nav" aria-label="Main navigation">
 					<Link to="/">Home</Link>
 				</nav>
@@ -28,7 +29,7 @@ function AppLayout() {
 			<main className="app-content">
 				<Routes>
 					<Route path="/" element={<Home />} />
-					<Route path="/graphs" element={<Graphs />} />
+					<Route path="/graphs" element={<GraphDashboard />} />
 					<Route path="/help" element={<Help />} />
 					<Route path="*" element={<Navigate to="/" replace />} />
 				</Routes>
