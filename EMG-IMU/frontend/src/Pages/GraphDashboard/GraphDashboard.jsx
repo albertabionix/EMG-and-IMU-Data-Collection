@@ -7,7 +7,7 @@ import { useState, useRef } from 'react'
 
 import './GraphDashboard.css'
 
-import { EMGGraph, GraphButton, IMUGraph, Timer } from '../../components'
+import { Camera, EMGGraph, GraphButton, IMUGraph, Timer } from '../../components'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://127.0.0.1:5000";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL;
@@ -58,19 +58,7 @@ function GraphDashboard() {
                         <IMUGraph />
                     </section>
                     <EMGGraph />
-                    <div className="camera-panel">
-                        <div className="camera-controls">
-                            <button onClick={async () => { await fetch(`${API_BASE_URL}/camera/start`, { method: 'POST' }); }}>Start Camera</button>
-                            <button onClick={async () => { await fetch(`${API_BASE_URL}/camera/stop`, { method: 'POST' }); }}>Stop Camera</button>
-                        </div>
-                        <div className="camera-preview">
-                            {cameraImage ? (
-                                <img src={cameraImage} alt="Camera Preview" />
-                            ) : (
-                                <div className="camera-placeholder">No preview</div>
-                            )}
-                        </div>
-                    </div>
+                    <Camera />
                     <section className="buttons">
                         <GraphButton label='Record' name='record' onClick={handleRecord} />
                         <GraphButton label='Stop' name='stop' onClick={handleStop} />

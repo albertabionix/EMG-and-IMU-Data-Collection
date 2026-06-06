@@ -1,0 +1,28 @@
+.camera-panel button {
+    width: 100px;
+    text-align: center;
+    padding: 0 0;
+}
+
+.camera-panel .camera-controls {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 3px;
+    gap: 3px;
+}
+
+.camera-preview {
+    border: 6px solid var(--border);
+    height: auto;
+    width: auto;
+}
+
+.camera-panel img {
+    height: 375px;
+    width: 500px;
+}
+
+.camera-placeholder {
+    height: auto;
+    width: auto;
+}

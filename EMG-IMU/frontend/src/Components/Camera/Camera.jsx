@@ -4,18 +4,11 @@ import { useState, useRef, useImperativeHandle, forwardRef } from 'react'
 import './Camera.css'
 
 const Camera = () => {
-    const [timerDisplay, setTimerDisplay] = useState('0:00.00');
+    const [cameraImage, setCameraImage] = useState(null);
 
-    const elapsed = useRef(0);
-    const running = useRef(false);
-    const intervalId = useRef(null);
-    const startTime = useRef(null);
 
-    function formatTime(ms) {
-        const minutes = Math.floor(ms / 60000);
-        const seconds = Math.floor((ms % 60000) / 1000);
-        const centiseconds = Math.floor((ms % 1000) / 10);
-        return `${minutes}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
+    async function openCamera() {
+        await fetch('http://localhost:5000/api/camera/start', { method: 'POST' });
     }
 
     useImperativeHandle(ReferenceError, () => ({
@@ -39,9 +32,19 @@ const Camera = () => {
     
 
     return (
-        <section className='timer-section'>
-            <p className='timer'>{timerDisplay}</p>
-        </section>
+        <div className="camera-panel">
+            <div className="camera-controls">
+                <button onClick={async () => { await fetch(`${API_BASE_URL}/camera/start`, { method: 'POST' }); }}>Start Camera</button>
+                <button onClick={async () => { await fetch(`${API_BASE_URL}/camera/stop`, { method: 'POST' }); }}>Stop Camera</button>
+            </div>
+            <div className="camera-preview">
+                {cameraImage ? (
+                    <img src={cameraImage} alt="Camera Preview" />
+                ) : (
+                    <div className="camera-placeholder">No preview</div>
+                )}
+            </div>
+        </div>
     )
 }
 
