@@ -51,6 +51,10 @@ function Home() {
         }
         navigate('/graphs', { state: { name, port, ID } })
     }
+    
+    function authenticate() {
+        
+    }
 
     return (
         <>
@@ -63,7 +67,7 @@ function Home() {
                     <section className='button-flex'>
                         <HomeButton label='Start' onClick={handleStart}/>
                         <HomeButton label='Help' onClick={handleHelp}/>
-                        <HomeButton label='Authenticate'/>
+                        <HomeButton label='Authenticate' onClick={authenticate}/>
                     </section>
                     {/* appears below buttons when Start is clicked */}
                     {showInputs && (

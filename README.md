@@ -1,8 +1,20 @@
 # EMG-and-IMU-Data-Collection
 An application to collect data EMG and IMU data using JS, HTML, and CSS.
 
-## Getting Started (Windows)
+## Downloads
 
+1. Download [node.js](https://nodejs.org/en/download) and follow the steps given.
+2. Check if node.js is downloaded properly
+   ```bash
+   node -v
+   ```
+   → v24.12.0 or higher
+   ```bash
+   npm -v 
+   ```
+   → 11.9.0 or higher
+   
+## Getting Started (Windows)
 1. Clone the repository:
    ```bash
    git clone https://github.com/albertabionix/EMG-and-IMU-Data-Collection.git
