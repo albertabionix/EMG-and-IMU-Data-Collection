@@ -1,22 +1,19 @@
+# —— imports ——
 import os
-
 from flask import Flask, request, jsonify, Response
 from flask_socketio import SocketIO
-
-# Checks if serial is in the virtual environment 
-try:
-    from serial import Serial, SerialException
-except Exception as error:
-    raise RuntimeError(
-        "pyserial is not available (or a conflicting 'serial' module is being imported). "
-        "Run: python -m pip uninstall -y serial ; python -m pip install pyserial"
-    ) from error
-    
 import cv2
 import time
 import numpy as np
 import threading
 import base64
+try:
+    from serial import Serial, SerialException # Checks if serial is in the virtual environment 
+except Exception as error:
+    raise RuntimeError(
+        "pyserial is not available (or a conflicting 'serial' module is being imported). "
+        "Run: python -m pip uninstall -y serial ; python -m pip install pyserial"
+    ) from error
 
 from cv_processor import (
     detect_aruco,
@@ -24,15 +21,15 @@ from cv_processor import (
     compute_linear_kinematics
 )
 
-# So you can keep changing the comport
-global COMPORT
+# —— global variables ——
+global COMPORT # So you can keep changing the comport
 
 COMPORT = os.getenv("SERIAL_PORT", "COM4")
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "5000"))
 BAUD_RATE = 115200
 
-app = Flask(__name__)
+app = Flask(__name__) # Sends and receives API calls
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 camera = cv2.VideoCapture(0)  # 0 = default camera
@@ -99,7 +96,6 @@ def read_serial():
             socketio.sleep(1)
 
 # Port Change
-
 @app.route('/change-port', methods=['POST'])
 def changePort():
     global COMPORT 
