@@ -221,7 +221,9 @@ function GraphDashboard() {
 
     return (
         <section className="main-section">
-            <Timer ref={timerFunctions} />
+            <section className='info-section'>
+                <Timer ref={timerFunctions} />
+            </section>
             <section className="graphs">
                 <section className="IMUs">
                     <IMUSlider />
