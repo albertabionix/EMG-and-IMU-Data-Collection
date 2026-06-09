@@ -13,7 +13,7 @@ import { io } from 'socket.io-client'
 
 import './GraphDashboard.css'
 
-import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, IMUSlider } from '../../components'
+import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, IMUSlider, ExperimentName } from '../../components'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000' // 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
@@ -222,7 +222,9 @@ function GraphDashboard() {
     return (
         <section className="main-section">
             <section className='info-section'>
-                <Timer ref={timerFunctions} />
+                <ExperimentName subtitle='Experiment:' title={name}/>
+                <ExperimentName subtitle='Port:' title={port}/>
+                <ExperimentName subtitle='ID:' title={ID}/>
             </section>
             <section className="graphs">
                 <section className="IMUs">
@@ -234,14 +236,15 @@ function GraphDashboard() {
                     latestValues={latestValues}
                     emgMaxUv={EMG_MAX_UV}
                 />
-
-                <Camera
-                    cameraImage={cameraImage}
-                    cvStatus={cvStatus}
-                    onStart={handleCameraStart}
-                    onStop={handleCameraStop}
-                />
-
+                <section className='timer-camera-section'>
+                    <Timer ref={timerFunctions} />
+                    <Camera
+                        cameraImage={cameraImage}
+                        cvStatus={cvStatus}
+                        onStart={handleCameraStart}
+                        onStop={handleCameraStop}
+                    />
+                </section>
                 <section className="buttons">
                     <GraphButton label="Record" name="record" onClick={handleRecord} />
                     <GraphButton label="Stop"   name="stop"   onClick={handleStop} />
