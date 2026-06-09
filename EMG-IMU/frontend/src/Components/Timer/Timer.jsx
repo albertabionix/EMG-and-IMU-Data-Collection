@@ -1,13 +1,8 @@
-/*
-    Timer.jsx
-    This is used to track the time of the experiment when record is pressed.
-*/
-import React from 'react';
 import { useState, useRef, useImperativeHandle, forwardRef } from 'react'
-
 import './Timer.css'
 
-const Timer = () => {
+
+const Timer = forwardRef((props, ref) => {
     const [timerDisplay, setTimerDisplay] = useState('0:00.00');
 
     const elapsed = useRef(0);
@@ -22,8 +17,9 @@ const Timer = () => {
         return `${minutes}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
     }
 
-    useImperativeHandle(ReferenceError, () => ({
+    useImperativeHandle(ref, () => ({
         start() {
+            setTimerDisplay('0:00.00');
             if (running.current) return;
             running.current = true;
             startTime.current = Date.now() - elapsed.current;
@@ -32,21 +28,18 @@ const Timer = () => {
                 setTimerDisplay(formatTime(elapsed.current));
             }, 10);
         },
-
         stop() {
             running.current = false;
             clearInterval(intervalId.current);
             elapsed.current = 0;
-            setTimerDisplay('0:00.00');
         }
     }))
-    
 
     return (
         <section className='timer-section'>
             <p className='timer'>{timerDisplay}</p>
         </section>
     )
-}
+})
 
 export default Timer
