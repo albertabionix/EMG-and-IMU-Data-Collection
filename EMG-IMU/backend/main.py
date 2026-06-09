@@ -2,11 +2,16 @@
 import os
 from flask import Flask, request, jsonify, Response
 from flask_socketio import SocketIO
+from flask_cors import CORS
 import cv2
+from datetime import datetime
 import time
 import numpy as np
 import threading
 import base64
+import csv
+import json
+
 try:
     from serial import Serial, SerialException # Checks if serial is in the virtual environment 
 except Exception as error:
@@ -30,9 +35,15 @@ PORT = int(os.getenv("PORT", "5000"))
 BAUD_RATE = 115200
 
 app = Flask(__name__) # Sends and receives API calls
+CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 camera = cv2.VideoCapture(0)  # 0 = default camera
+
+ser = None
+is_recording = False
+csv_writer = None
+csv_file = None
 
 @app.after_request
 def add_cors_headers(response):
@@ -83,6 +94,17 @@ def read_serial():
             data = {"raw": line}
 
             socketio.emit("sensor_data", data)
+
+            if is_recording and csv_writer:
+                try:
+                    parsed = json.loads(line)
+                    emg1 = parsed.get("emg1", "")
+                    emg2 = parsed.get("emg2", "")
+                    csv_writer.writerow([time.time(), emg1, emg2])
+                    csv_file.flush()  # write immediately, don't buffer
+                except json.JSONDecodeError:
+                    pass  # skip malformed lines
+
         except SerialException as error:
             print(f"Serial read error: {error}")
             try:
@@ -94,6 +116,39 @@ def read_serial():
         except Exception as error:
             print(f"Unexpected serial loop error: {error}")
             socketio.sleep(1)
+
+@app.route('/record/start', methods=['POST'])
+def startRecording():
+    global is_recording, csv_writer, csv_file
+
+    data = request.get_json()
+
+    folder = "tests"
+    os.makedirs(folder, exist_ok=True)  # creates folder if it doesn't exist
+    
+    experiment = data.get("experiment", "unknown").replace(" ", "_")
+    number_id = data.get("numberID", "0")
+    time = datetime.now().strftime('%Y-%b-%d_%H-%M-%S')
+    
+
+    filename = os.path.join(folder, f"recording_{experiment}_{number_id}_{time}.csv") 
+    csv_file = open(filename, "w", newline="")
+    csv_writer = csv.writer(csv_file)
+    csv_writer.writerow(["timestamp", "emg1", "emg2"])  # header
+    is_recording = True
+    print(f"Recording started: {filename}")
+    return filename
+
+@app.route('/record/stop', methods=['POST'])
+def stopRecording():
+    global is_recording, csv_writer, csv_file
+    is_recording = False
+    if csv_file:
+        csv_file.close()
+        csv_file = None
+        csv_writer = None
+    print("Recording stopped")
+    return jsonify({ "recording": False })  # make sure this line is there
 
 # Port Change
 @app.route('/change-port', methods=['POST'])

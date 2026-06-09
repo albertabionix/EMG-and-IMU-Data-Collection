@@ -89,15 +89,21 @@ async function changePort(portName) {
 function GraphDashboard() {
     const { state } = useLocation()
     const navigate = useNavigate()
+    const location = useLocation()
     const timerFunctions = useRef(null)
 
     // EMG state
     const [series, setSeries] = useState([])
     const [latestValues, setLatestValues] = useState([])
+    const [isRecording, setIsRecording] = useState(false)
 
     // Camera state
     const [cameraImage, setCameraImage] = useState(null)
     const [cvStatus, setCvStatus] = useState('stopped')
+
+    // Experiment name, port, and ID
+    const { name, port, ID } = location.state || {}
+
 
     // ── socket setup ——
 
@@ -172,12 +178,31 @@ function GraphDashboard() {
 
     // —— button handlers ——
 
-    function handleRecord() {
+    async function handleRecord() {
         timerFunctions.current?.start()
+        const response = await fetch(`${API_BASE_URL}/record/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ experiment: name, numberID: ID }),
+        })
+
+        if (!response.ok) {
+            throw new Error(`Failed to record: ${response.status}`)
+        }
+
+        return response.json()
+
     }
 
-    function handleStop() {
+    async function handleStop() {
         timerFunctions.current?.stop()
+        const response = await fetch(`${API_BASE_URL}/record/stop`, {
+            method: 'POST',
+        })
+
+        if (!response.ok) {
+            throw new Error(`Failed to stop: ${response.status}`)
+        }
     }
 
     function handleHome() {
@@ -200,9 +225,7 @@ function GraphDashboard() {
             <section className="graphs">
                 <section className="IMUs">
                     <IMUGraph />
-                    <IMUGraph />
                 </section>
-
                 <EMGGraph
                     series={series}
                     latestValues={latestValues}
