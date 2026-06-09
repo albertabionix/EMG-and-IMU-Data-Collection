@@ -7,6 +7,8 @@
     position: relative;
     overflow: hidden;
     justify-content: center;
+    padding-bottom: 10px;
+    padding-top: 10px;
 }
 
 .graphs {
@@ -23,7 +25,8 @@
 .IMUs {
     display: flex;
     align-items: center;
-    gap: 20px;
+    flex-direction: column;
+    height: 535px;
 }
 
 .buttons {

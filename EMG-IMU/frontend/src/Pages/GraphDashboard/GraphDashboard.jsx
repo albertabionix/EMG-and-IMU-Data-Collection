@@ -13,7 +13,7 @@ import { io } from 'socket.io-client'
 
 import './GraphDashboard.css'
 
-import { Camera, EMGGraph, GraphButton, IMUGraph, Timer } from '../../components'
+import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, IMUSlider } from '../../components'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000' // 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
@@ -224,6 +224,7 @@ function GraphDashboard() {
             <Timer ref={timerFunctions} />
             <section className="graphs">
                 <section className="IMUs">
+                    <IMUSlider />
                     <IMUGraph />
                 </section>
                 <EMGGraph
