@@ -66,24 +66,6 @@ function parseSensorPacket(packet) {
         .filter((v) => Number.isFinite(v))
 }
 
-// Changing a port by sending a API to the backend with the new port.
-async function changePort(portName) {
-    const newPort = portName || prompt('Enter your port name')
-    if (!newPort) return
-
-    const response = await fetch(`${API_BASE_URL}/change-port`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: newPort }),
-    })
-
-    if (!response.ok) {
-        throw new Error(`Failed to change port: ${response.status}`)
-    }
-
-    return response.json()
-}
-
 // ── component ——
 
 function GraphDashboard() {
@@ -91,6 +73,7 @@ function GraphDashboard() {
     const navigate = useNavigate()
     const location = useLocation()
     const timerFunctions = useRef(null)
+    const [newPort, setNewPort] = useState()
 
     // EMG state
     const [series, setSeries] = useState([])
@@ -114,6 +97,8 @@ function GraphDashboard() {
                 console.error('Failed to apply selected port:', err)
             )
         }
+
+        setNewPort(port)
 
         const onConnect = () => console.log('Socket connected to backend')
         const onConnectError = (err) => console.error('Socket connection failed:', err)
@@ -212,9 +197,30 @@ function GraphDashboard() {
     async function handlePortChange() {
         try {
             await changePort()
+
         } catch (err) {
             console.error('Port change failed:', err)
         }
+    }
+
+    // Changing a port by sending a API to the backend with the new port.
+    async function changePort(portName) {
+        const newPort = portName || prompt('Enter your port name')
+        if (!newPort) return
+
+        const response = await fetch(`${API_BASE_URL}/change-port`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value: newPort }),
+        })
+
+        if (!response.ok) {
+            throw new Error(`Failed to change port: ${response.status}`)
+        } 
+
+        setNewPort(newPort)
+
+        return response.json()
     }
 
     // —— render ——
@@ -223,7 +229,7 @@ function GraphDashboard() {
         <section className="main-section">
             <section className='info-section'>
                 <ExperimentName subtitle='Experiment:' title={name}/>
-                <ExperimentName subtitle='Port:' title={port}/>
+                <ExperimentName subtitle='Port:' title={newPort}/>
                 <ExperimentName subtitle='ID:' title={ID}/>
             </section>
             <section className="graphs">
