@@ -248,7 +248,7 @@ function GraphDashboard() {
                 <section className="buttons">
                     <GraphButton label="Record" name="record" onClick={handleRecord} />
                     <GraphButton label="Stop"   name="stop"   onClick={handleStop} />
-                    <GraphButton label="Import" name="import" />
+                    <GraphButton label="Export" name="export" />
                     <GraphButton label="Port"   name="port"   onClick={handlePortChange} />
                     <GraphButton label="Back"   name="back"   onClick={handleHome} />
                 </section>
