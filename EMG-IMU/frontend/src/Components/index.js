@@ -5,7 +5,7 @@
 export { default as HomeButton } from './HomeButton/HomeButton.jsx'
 export { default as ConfirmButton } from './ConfirmButton/ConfirmButton.jsx'
 export { default as HomeInput } from './HomeInput/HomeInput.jsx'
-export { default as PortsDropdown } from './PortsDropdown/PortsDropdown.jsx'
+export { default as Dropdown } from './Dropdown/Dropdown.jsx'
 export { default as EMGGraph } from './EMG-Graph/EMG-Graph.jsx'
 export { default as GraphButton } from './GraphButton/GraphButton.jsx'
 export { default as IMUGraph } from './IMU-Graph/IMU-Graph.jsx'

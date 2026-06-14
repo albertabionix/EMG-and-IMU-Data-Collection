@@ -12,8 +12,16 @@ import { useState } from "react";
 
 import './Home.css'
 
-import { HomeInput, HomeButton, PortsDropdown, ConfirmButton } from '../../components'
+import { HomeInput, HomeButton, Dropdown, ConfirmButton } from '../../components'
 
+const PORT_OPTIONS = [
+    'COM1', 'COM2', 'COM3', 'COM4', 'COM5',
+    'COM6', 'COM7', 'COM8', 'COM9', 'COM10',
+];
+
+const EXPERIMENT_OPTIONS = [
+    'Extend & Contract', 'Gait Cycle', 'Staircase',
+]
 
 function Home() {
     // States
@@ -72,13 +80,11 @@ function Home() {
                     {/* appears below buttons when Start is clicked */}
                     {showInputs && (
                         <section id="start-section">
-                            <HomeInput 
+                            <Dropdown 
                                 label='Experiment'
-                                type='text'
-                                name='experiment'
-                                placeholder=''
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
+                                options={EXPERIMENT_OPTIONS}
                             />	
                             <HomeInput 
                                 label='ID Number'
@@ -88,10 +94,11 @@ function Home() {
                                 value={ID}
                                 onChange={(e) => setID(e.target.value)}
                             />
-                            <PortsDropdown
+                            <Dropdown
                                 label='Port'
                                 value={port}
                                 onChange={(e) => setPort(e.target.value)}
+                                options={PORT_OPTIONS}
                             />
                             {error && <p className='error'>{error}</p>}
                             <ConfirmButton
