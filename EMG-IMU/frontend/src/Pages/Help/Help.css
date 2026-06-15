@@ -6,26 +6,22 @@
     flex-direction: column;
     padding: 2rem;
     margin: 0 0;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+}
 
+.help-section .title-card {
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 36px;
+    margin: 0 0;
+    background-color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+}
 
-    h1 {
-        font-family: 'Chakra Petch', sans-serif;
-        font-size: 36px;
-        margin: 0 0;
-    }
-
-    h2 {
-        font-family: 'Chakra Petch', sans-serif;
-        font-size: 28px;
-    }
-
-    ul {
-        margin-top: -20px;
-    }
-
-    li {
-        font-family: 'Chakra Petch', sans-serif;
-        font-size: 24px;
-    }
-
+.help-section .three-flex {
+    display: flex;
+    flex-direction: row;
+    flex: 3;
 }
