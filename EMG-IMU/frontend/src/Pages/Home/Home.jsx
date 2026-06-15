@@ -26,7 +26,7 @@ const EXPERIMENT_OPTIONS = [
 function Home() {
     // States
     const [showInputs, setShowInputs] = useState(false);
-    const [name, setName] = useState("");
+    const [name, setName] = useState("Extend & Contract");
     const [port, setPort] = useState('COM4');
 	const [ID, setID] = useState('');
     const [error, setError] = useState('')

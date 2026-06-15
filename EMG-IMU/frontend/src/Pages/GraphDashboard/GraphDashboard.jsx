@@ -13,7 +13,7 @@ import { io } from 'socket.io-client'
 
 import './GraphDashboard.css'
 
-import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, IMUSlider, ExperimentName } from '../../components'
+import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, IMUSlider, ExperimentName, Notification } from '../../components'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000' // 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
@@ -73,7 +73,16 @@ function GraphDashboard() {
     const navigate = useNavigate()
     const location = useLocation()
     const timerFunctions = useRef(null)
+
+    // Port state
     const [newPort, setNewPort] = useState()
+
+    // Notification state
+    const [notification, setNotification] = useState(null)
+    const showNotification = (message, type = 'info') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3000);
+    };
 
     // EMG state
     const [series, setSeries] = useState([])
@@ -173,7 +182,10 @@ function GraphDashboard() {
 
         if (!response.ok) {
             throw new Error(`Failed to record: ${response.status}`)
+            showNotification('Recording failed', 'info');
         }
+
+        showNotification('Recording started', 'info');
 
         return response.json()
 
@@ -188,6 +200,9 @@ function GraphDashboard() {
         if (!response.ok) {
             throw new Error(`Failed to stop: ${response.status}`)
         }
+
+        showNotification('Recording stopped', 'info');
+
     }
 
     function handleHome() {
@@ -197,9 +212,10 @@ function GraphDashboard() {
     async function handlePortChange() {
         try {
             await changePort()
-
+            showNotification('Port connected', 'info');
         } catch (err) {
             console.error('Port change failed:', err)
+            showNotification('Port failed', 'info');
         }
     }
 
@@ -227,6 +243,7 @@ function GraphDashboard() {
 
     return (
         <section className="main-section">
+            {notification && (<Notification message={notification.message}/>)}
             <section className='info-section'>
                 <ExperimentName subtitle='Experiment:' title={name}/>
                 <ExperimentName subtitle='Port:' title={newPort}/>
