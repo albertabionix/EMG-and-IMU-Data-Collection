@@ -16,4 +16,13 @@
         color: var(--primary);
         box-shadow: inset 4px 4px 12px var(--second), inset -4px -4px 12px var(--second);
     }
+
+    button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    button:disabled:active {
+        box-shadow: none;
+    }
 }

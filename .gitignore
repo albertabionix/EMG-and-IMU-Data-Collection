@@ -26,3 +26,7 @@ dist-ssr
 venv/
 
 tests/
+
+# Authentication
+token.json
+__pycache__/

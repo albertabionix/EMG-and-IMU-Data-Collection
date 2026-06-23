@@ -8,28 +8,40 @@
 */
 
 import { Link, useNavigate } from 'react-router-dom'
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 import './Home.css'
 
 import { HomeInput, HomeButton, Dropdown, ConfirmButton } from '../../components'
+
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
 
 const PORT_OPTIONS = [
     'COM1', 'COM2', 'COM3', 'COM4', 'COM5',
     'COM6', 'COM7', 'COM8', 'COM9', 'COM10',
 ];
 
+// Display labels map to BionixDB's canonical Action tokens (see ACTION_NAMES in
+// bionix_db/bionixdb.py) so the value sent to the backend already matches what
+// upload_emg/upload_imu/upload_cvkas expect — no translation layer needed later.
 const EXPERIMENT_OPTIONS = [
-    'Extend & Contract', 'Gait Cycle', 'Staircase',
+    { label: 'Extend & Contract', value: 'seated' },
+    { label: 'Gait Cycle', value: 'walking' },
+    { label: 'Staircase', value: 'stairs' },
 ]
 
 function Home() {
     // States
     const [showInputs, setShowInputs] = useState(false);
-    const [name, setName] = useState("Extend & Contract");
+    const [name, setName] = useState("seated"); // canonical Action token, see EXPERIMENT_OPTIONS
     const [port, setPort] = useState('COM4');
 	const [ID, setID] = useState('');
     const [error, setError] = useState('')
+    const [authStatus, setAuthStatus] = useState('') // CONTRIBUTOR, CONTENT_MANAGER, or '' if not authenticated
+    const [authenticating, setAuthenticating] = useState(false)
+    const authAbortRef = useRef(null)
+    const authCancelledRef = useRef(false)
 
     const navigate = useNavigate();
 
@@ -57,11 +69,52 @@ function Home() {
             setError("Missing the ID name")
             return
         }
-        navigate('/graphs', { state: { name, port, ID } })
+        const label = EXPERIMENT_OPTIONS.find((option) => option.value === name)?.label || name
+        navigate('/graphs', { state: { name, label, port, ID } })
     }
     
-    function authenticate() {
-        
+    async function authenticate() {
+        setAuthenticating(true)
+        setError('')
+        // The backend opens a real browser login (BionixDB's OAuth flow) and waits for it
+        // to complete with no timeout of its own — if the user closes that tab without
+        // finishing, this fetch would otherwise hang forever and leave the button stuck.
+        // Abort after a generous window so the user can just click Authenticate again.
+        const controller = new AbortController()
+        authAbortRef.current = controller
+        authCancelledRef.current = false
+        const timeoutId = setTimeout(() => controller.abort(), 90000)
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                signal: controller.signal,
+            })
+            const result = await response.json()
+            if (!response.ok || !result.authenticated) {
+                setAuthStatus('')
+                setError(result.error || 'Authentication failed')
+                return
+            }
+            setAuthStatus(result.access)
+        } catch (err) {
+            setAuthStatus('')
+            if (err.name === 'AbortError') {
+                setError(authCancelledRef.current ? 'Authentication cancelled' : 'Authentication timed out — please try again')
+            } else {
+                setError('Could not reach the server to authenticate')
+            }
+        } finally {
+            clearTimeout(timeoutId)
+            authAbortRef.current = null
+            setAuthenticating(false)
+        }
+    }
+
+    // Lets the user give up on a stuck login (e.g. they picked the wrong Google account or
+    // granted the wrong Drive access) immediately, instead of waiting for the 90s timeout.
+    function cancelAuthenticate() {
+        authCancelledRef.current = true
+        authAbortRef.current?.abort()
     }
 
     return (
@@ -73,10 +126,14 @@ function Home() {
                 </section>
                 <section className="work-block">
                     <section className='button-flex'>
-                        <HomeButton label='Start' onClick={handleStart}/>
+                        <HomeButton label='Start' onClick={handleStart} disabled={authStatus !== 'CONTENT_MANAGER'}/>
                         <HomeButton label='Help' onClick={handleHelp}/>
-                        <HomeButton label='Authenticate' onClick={authenticate}/>
+                        <HomeButton
+                            label={authenticating ? 'Cancel' : authStatus ? `Authenticated (${authStatus})` : 'Authenticate'}
+                            onClick={authenticating ? cancelAuthenticate : authenticate}
+                        />
                     </section>
+                    {error && <p className='error'>{error}</p>}
                     {/* appears below buttons when Start is clicked */}
                     {showInputs && (
                         <section id="start-section">

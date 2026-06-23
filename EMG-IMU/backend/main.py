@@ -13,12 +13,16 @@ import csv
 import json
 
 try:
-    from serial import Serial, SerialException # Checks if serial is in the virtual environment 
+    from serial import Serial, SerialException # Checks if serial is in the virtual environment
 except Exception as error:
     raise RuntimeError(
         "pyserial is not available (or a conflicting 'serial' module is being imported). "
         "Run: python -m pip uninstall -y serial ; python -m pip install pyserial"
     ) from error
+
+from googleapiclient.errors import HttpError
+from bionix_db import BionixDB
+from bionix_db.bionixdb import Access, ACTION_BY_NAME
 
 from cv_processor import (
     detect_aruco,
@@ -44,6 +48,16 @@ ser = None
 is_recording = False
 csv_writer = None
 csv_file = None
+bionix_db = None  # set on successful /auth/login, reused for later uploads
+# {"pid", "action", "files": {"emg": path|None, "imu": path|None, "cvkas": path|None}}
+# for the trial currently awaiting export/discard. Modalities are filled in independently
+# as each one's recording stops, so a session can mix-and-match whichever were recorded.
+last_recording = None
+
+def _init_recording(pid, action):
+    global last_recording
+    if last_recording is None:
+        last_recording = {"pid": pid, "action": action, "files": {"emg": None, "imu": None, "cvkas": None}}
 
 @app.after_request
 def add_cors_headers(response):
@@ -117,27 +131,49 @@ def read_serial():
             print(f"Unexpected serial loop error: {error}")
             socketio.sleep(1)
 
+@app.route('/auth/login', methods=['POST'])
+def authLogin():
+    global bionix_db
+
+    try:
+        # force_reauth=True so every click of Authenticate opens a fresh Google login,
+        # instead of silently reusing a cached token.json from a previous session.
+        db = BionixDB(force_reauth=True)
+        db.authenticate_user(db.credentials_file, db.token_file, require_content_manager=True)
+    except PermissionError as error:
+        return jsonify({'authenticated': False, 'error': str(error)}), 403
+    except HttpError as error:
+        return jsonify({'authenticated': False, 'error': str(error)}), 502
+
+    bionix_db = db
+    return jsonify({
+        'authenticated': True,
+        'access': db.access.name,  # "CONTRIBUTOR" or "CONTENT_MANAGER"
+    })
+
 @app.route('/record/start', methods=['POST'])
 def startRecording():
-    global is_recording, csv_writer, csv_file
+    global is_recording, csv_writer, csv_file, last_recording
 
     data = request.get_json()
 
     folder = "tests"
     os.makedirs(folder, exist_ok=True)  # creates folder if it doesn't exist
-    
+
     experiment = data.get("experiment", "unknown").replace(" ", "_")
     number_id = data.get("numberID", "0")
     time = datetime.now().strftime('%Y-%b-%d_%H-%M-%S')
-    
 
-    filename = os.path.join(folder, f"recording_{experiment}_{number_id}_{time}.csv") 
+
+    filename = os.path.join(folder, f"recording_{experiment}_{number_id}_{time}.csv")
     csv_file = open(filename, "w", newline="")
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow(["timestamp", "emg1", "emg2"])  # header
     is_recording = True
+    _init_recording(number_id, experiment)
+    last_recording["files"]["emg"] = filename
     print(f"Recording started: {filename}")
-    return filename
+    return jsonify({"filename": filename})
 
 @app.route('/record/stop', methods=['POST'])
 def stopRecording():
@@ -149,6 +185,90 @@ def stopRecording():
         csv_writer = None
     print("Recording stopped")
     return jsonify({ "recording": False })  # make sure this line is there
+
+def _normalize_pid(raw_pid: str):
+    return int(raw_pid) if raw_pid.isdigit() else raw_pid
+
+@app.route('/record/discard', methods=['POST'])
+def discardRecording():
+    global last_recording
+
+    if last_recording is None:
+        return jsonify({'discarded': False, 'error': 'No recording available to discard'}), 400
+
+    for path in last_recording["files"].values():
+        if path and os.path.exists(path):
+            os.remove(path)
+    last_recording = None
+    print("Recording discarded")
+    return jsonify({'discarded': True})
+
+@app.route('/export', methods=['POST'])
+def export():
+    global last_recording
+
+    if bionix_db is None:
+        return jsonify({'uploaded': False, 'error': 'Not authenticated — click Authenticate first'}), 401
+
+    if last_recording is None:
+        return jsonify({'uploaded': False, 'error': 'No recording available to export'}), 400
+
+    action = ACTION_BY_NAME.get(last_recording["action"])
+    if action is None:
+        return jsonify({'uploaded': False, 'error': f"Unknown action '{last_recording['action']}'"}), 400
+
+    pid = _normalize_pid(last_recording["pid"])
+    # Only the modalities actually recorded for this trial get uploaded — upload_session
+    # skips any left as None and still assigns one shared trial number across the rest.
+    files = {modality: path for modality, path in last_recording["files"].items() if path}
+
+    try:
+        result = bionix_db.upload_session(pid=pid, action=action, **files)
+    except PermissionError as error:
+        return jsonify({'uploaded': False, 'error': str(error)}), 403
+    except (FileNotFoundError, ValueError) as error:
+        return jsonify({'uploaded': False, 'error': str(error)}), 400
+    except HttpError as error:
+        return jsonify({'uploaded': False, 'error': str(error)}), 502
+
+    # Upload succeeded — the local copies are now redundant with the Drive copies.
+    for path in files.values():
+        if os.path.exists(path):
+            os.remove(path)
+    last_recording = None
+
+    return jsonify({'uploaded': True, 'names': {modality: r['name'] for modality, r in result.items()}})
+
+# ======== IMU recording (skeleton — sensor pipeline not implemented yet) ============
+# Mirror startRecording()/stopRecording() above once IMU data collection exists: write the
+# local CSV the same way EMG does, then call _init_recording(pid, action) and set
+# last_recording["files"]["imu"] = filename so /export and /record/discard pick it up
+# automatically — neither of those routes need any changes to support IMU once this lands.
+
+@app.route('/record/imu/start', methods=['POST'])
+def startRecordingIMU():
+    return jsonify({'error': 'IMU recording not implemented yet'}), 501
+
+@app.route('/record/imu/stop', methods=['POST'])
+def stopRecordingIMU():
+    return jsonify({'error': 'IMU recording not implemented yet'}), 501
+# ======== IMU recording (skeleton — sensor pipeline not implemented yet) ============
+
+# ============ CVKAS recording (skeleton — not yet persisted to disk) ===========
+# cv_processor.py already computes angles/kinematics per-frame and emits them live via
+# socketio ("cv_data", see camera_loop()) but never writes them to a CSV. Once that's added:
+# buffer the cv_data payloads during camera_loop() and flush them to a CSV on camera stop,
+# then call _init_recording(pid, action) and set last_recording["files"]["cvkas"] = filename,
+# same pattern as IMU above.
+
+@app.route('/record/cvkas/start', methods=['POST'])
+def startRecordingCVKAS():
+    return jsonify({'error': 'CVKAS recording not implemented yet'}), 501
+
+@app.route('/record/cvkas/stop', methods=['POST'])
+def stopRecordingCVKAS():
+    return jsonify({'error': 'CVKAS recording not implemented yet'}), 501
+# ============ CVKAS recording (skeleton — not yet persisted to disk) ===========
 
 # Port Change
 @app.route('/change-port', methods=['POST'])

@@ -5,10 +5,10 @@
 import React from 'react';
 import './HomeButton.css'
 
-const HomeButton = ({ label, onClick }) => {
+const HomeButton = ({ label, onClick, disabled }) => {
     return (
         <section className="homebutton-section">
-            <button onClick={onClick} >{label}</button>
+            <button onClick={onClick} disabled={disabled}>{label}</button>
         </section>
     )
 }

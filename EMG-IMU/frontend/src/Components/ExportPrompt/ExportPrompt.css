@@ -1,0 +1,47 @@
+.export-prompt-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.export-prompt-box {
+    background: var(--fourth);
+    border: 2px solid var(--primary);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    min-width: 300px;
+    text-align: center;
+}
+
+.export-prompt-box p {
+    margin: 0 0 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.export-prompt-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.export-prompt-buttons button {
+    min-width: 110px;
+    padding: 0.7em 1.2em;
+    border-radius: 0.5em;
+    border: 1px solid var(--second);
+    background: var(--primary);
+    color: var(--fourth);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.export-prompt-buttons button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
