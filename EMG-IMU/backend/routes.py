@@ -3,8 +3,9 @@ import threading
 
 from Runs.extensions import app, socketio
 from Imports.state import state
+import auth
 import Camera.recording
-import Camera.cameraHandler
+from Camera import cameraHandler
 
 
 @app.after_request
@@ -14,6 +15,16 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return response
 
+
+# ---- Auth ----
+
+@app.route('/auth/login', methods=['POST'])
+def auth_login():
+    result, status = auth.login()
+    return jsonify(result), status
+
+
+# ---- EMG recording ----
 
 @app.route('/record/start', methods=['POST'])
 def start_recording_route():
@@ -31,6 +42,57 @@ def stop_recording_route():
     return jsonify({"recording": False})
 
 
+@app.route('/record/discard', methods=['POST'])
+def discard_recording_route():
+    ok, error = Camera.recording.discard_recording()
+    if not ok:
+        return jsonify({'discarded': False, 'error': error}), 400
+    return jsonify({'discarded': True})
+
+
+@app.route('/export', methods=['POST'])
+def export_route():
+    result, status = Camera.recording.export_recording()
+    return jsonify(result), status
+
+
+# ======== IMU recording (skeleton — sensor pipeline not implemented yet) ============
+# Mirror start_recording_route()/stop_recording_route() above once IMU data collection
+# exists: write the local CSV the same way EMG does, then call recording._init_recording
+# and set state.last_recording["files"]["imu"] = filename so /export and /record/discard
+# pick it up automatically — neither of those routes need any changes to support IMU.
+
+@app.route('/record/imu/start', methods=['POST'])
+def start_recording_imu():
+    return jsonify({'error': 'IMU recording not implemented yet'}), 501
+
+
+@app.route('/record/imu/stop', methods=['POST'])
+def stop_recording_imu():
+    return jsonify({'error': 'IMU recording not implemented yet'}), 501
+# ======== IMU recording (skeleton — sensor pipeline not implemented yet) ============
+
+
+# ============ CVKAS recording (skeleton — not yet persisted to disk) ===========
+# cv_processor.py already computes angles/kinematics per-frame and emits them live via
+# socketio ("cv_data", see camera_loop()) but never writes them to a CSV. Once that's
+# added: buffer the cv_data payloads during camera_loop() and flush them to a CSV on
+# camera stop, then call recording._init_recording and set
+# state.last_recording["files"]["cvkas"] = filename, same pattern as IMU above.
+
+@app.route('/record/cvkas/start', methods=['POST'])
+def start_recording_cvkas():
+    return jsonify({'error': 'CVKAS recording not implemented yet'}), 501
+
+
+@app.route('/record/cvkas/stop', methods=['POST'])
+def stop_recording_cvkas():
+    return jsonify({'error': 'CVKAS recording not implemented yet'}), 501
+# ============ CVKAS recording (skeleton — not yet persisted to disk) ===========
+
+
+# ---- Misc / hardware control ----
+
 @app.route('/change-port', methods=['POST'])
 def change_port():
     data = request.get_json()
@@ -45,7 +107,7 @@ def start_camera():
     if state.camera_task_running:
         return jsonify({'status': 'already_running'})
     state.camera_stop_event = threading.Event()
-    socketio.start_background_task(Camera.cameraHandler.camera_loop, state.camera_stop_event)
+    socketio.start_background_task(cameraHandler.camera_loop, state.camera_stop_event)
     state.camera_task_running = True
     return jsonify({'status': 'started'})
 
@@ -62,6 +124,6 @@ def stop_camera():
 @app.route('/api/camera')
 def camera_feed():
     return Response(
-        Camera.cameraHandler.generate_frames(),
+        cameraHandler.generate_frames(),
         mimetype='multipart/x-mixed-replace; boundary=frame'
     )

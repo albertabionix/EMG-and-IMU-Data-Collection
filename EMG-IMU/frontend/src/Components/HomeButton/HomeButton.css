@@ -26,3 +26,16 @@
 .homebutton-section button:active {
 	transform: translateY(-1px);
 }
+
+.homebutton-section button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.homebutton-section button:disabled:hover {
+	transform: none;
+	background: var(--primary);
+	color: var(--fourth);
+	box-shadow: none;
+}

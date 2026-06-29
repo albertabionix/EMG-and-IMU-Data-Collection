@@ -5,12 +5,13 @@
 import React from 'react';
 import './GraphButton.css'
 
-const GraphButton = ({ label, name, onClick }) => {
+const GraphButton = ({ label, name, onClick, disabled }) => {
     return (
         <section className="graphbutton-section">
             <button
                 name='button'
-                onClick={onClick}    
+                onClick={onClick}
+                disabled={disabled}
             >
                 {label}
             </button>

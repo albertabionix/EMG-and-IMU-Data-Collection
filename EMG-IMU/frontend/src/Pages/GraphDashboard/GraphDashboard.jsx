@@ -13,7 +13,7 @@ import { io } from 'socket.io-client'
 
 import './GraphDashboard.css'
 
-import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, IMUSlider, ExperimentName, Notification } from '../../components'
+import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, IMUSlider, ExperimentName, Notification, ExportPrompt } from '../../components'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000' // 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
@@ -88,14 +88,38 @@ function GraphDashboard() {
     const [series, setSeries] = useState([])
     const [latestValues, setLatestValues] = useState([])
     const [isRecording, setIsRecording] = useState(false)
+    const [exporting, setExporting] = useState(false)
+    const [showExportPrompt, setShowExportPrompt] = useState(false)
+    const showExportPromptRef = useRef(false)
 
     // Camera state
     const [cameraImage, setCameraImage] = useState(null)
     const [cvStatus, setCvStatus] = useState('stopped')
 
-    // Experiment name, port, and ID
-    const { name, port, ID } = location.state || {}
+    // Experiment name (canonical BionixDB Action token), display label, port, and ID
+    const { name, label, port, ID } = location.state || {}
 
+
+    // Discards the orphaned local recording if the user leaves (navigates away, refreshes,
+    // or closes the tab) without resolving the export prompt — otherwise the local CSV file
+    // is never uploaded and never cleaned up. keepalive lets the request outlive the page.
+    function discardIfPromptAbandoned() {
+        if (!showExportPromptRef.current) return
+        fetch(`${API_BASE_URL}/record/discard`, { method: 'POST', keepalive: true })
+        showExportPromptRef.current = false
+    }
+
+    useEffect(() => {
+        showExportPromptRef.current = showExportPrompt
+    }, [showExportPrompt])
+
+    useEffect(() => {
+        window.addEventListener('beforeunload', discardIfPromptAbandoned)
+        return () => {
+            window.removeEventListener('beforeunload', discardIfPromptAbandoned)
+            discardIfPromptAbandoned() // covers in-app navigation away (Back, Home link, etc.)
+        }
+    }, [])
 
     // ── socket setup ——
 
@@ -202,7 +226,41 @@ function GraphDashboard() {
         }
 
         showNotification('Recording stopped', 'info');
+        setShowExportPrompt(true)
 
+    }
+
+    async function handleExport() {
+        setExporting(true)
+        try {
+            const response = await fetch(`${API_BASE_URL}/export`, { method: 'POST' })
+            const result = await response.json()
+            if (!response.ok || !result.uploaded) {
+                showNotification(result.error || 'Export failed', 'info')
+                return
+            }
+            showNotification(`Uploaded as ${Object.values(result.names).join(', ')}`, 'info')
+            setShowExportPrompt(false)
+        } catch (err) {
+            showNotification('Could not reach the server to export', 'info')
+        } finally {
+            setExporting(false)
+        }
+    }
+
+    async function handleCancelExport() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/record/discard`, { method: 'POST' })
+            const result = await response.json()
+            if (!response.ok || !result.discarded) {
+                showNotification(result.error || 'Failed to discard recording', 'info')
+                return
+            }
+            showNotification('Recording discarded', 'info')
+            setShowExportPrompt(false)
+        } catch (err) {
+            showNotification('Could not reach the server to discard the recording', 'info')
+        }
     }
 
     function handleHome() {
@@ -245,7 +303,7 @@ function GraphDashboard() {
         <section className="main-section">
             {notification && (<Notification message={notification.message}/>)}
             <section className='info-section'>
-                <ExperimentName subtitle='Experiment:' title={name}/>
+                <ExperimentName subtitle='Experiment:' title={label || name}/>
                 <ExperimentName subtitle='Port:' title={newPort}/>
                 <ExperimentName subtitle='ID:' title={ID}/>
             </section>
@@ -271,11 +329,17 @@ function GraphDashboard() {
                 <section className="buttons">
                     <GraphButton label="Record" name="record" onClick={handleRecord} />
                     <GraphButton label="Stop"   name="stop"   onClick={handleStop} />
-                    <GraphButton label="Export" name="export" />
                     <GraphButton label="Port"   name="port"   onClick={handlePortChange} />
                     <GraphButton label="Back"   name="back"   onClick={handleHome} />
                 </section>
             </section>
+            {showExportPrompt && (
+                <ExportPrompt
+                    onExport={handleExport}
+                    onCancel={handleCancelExport}
+                    exporting={exporting}
+                />
+            )}
         </section>
     )
 }

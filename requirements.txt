@@ -1,8 +1,10 @@
+-e ../bionix-db
 bidict==0.23.1
 blinker==1.9.0
 click==8.3.1
 colorama==0.4.6
 Flask==3.1.3
+Flask-Cors==6.0.1
 Flask-SocketIO==5.6.1
 future==1.0.0
 h11==0.16.0
