@@ -13,13 +13,13 @@ import { io } from 'socket.io-client'
 
 import './GraphDashboard.css'
 
-import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, IMUSlider, ExperimentName, Notification, ExportPrompt } from '../../components'
+import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, IMUSlider, ExperimentName, Notification, ExportPrompt } from '../../Components'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000' // 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
 
 const MAX_SAMPLES = 120
-const EMG_MAX_UV = 1000
+const EMG_MAX_UV = 1023
 
 const socket = io(SOCKET_URL, {
     transports: ['polling', 'websocket'],
@@ -66,6 +66,40 @@ function parseSensorPacket(packet) {
         .filter((v) => Number.isFinite(v))
 }
 
+const NUM_IMUS = 2
+
+function parseImuPacket(packet) {
+    if (!packet || packet.raw == null) return null
+
+    const raw = String(packet.raw).trim()
+    if (!raw) return null
+
+    try {
+        const parsed = JSON.parse(raw)
+        if (!parsed || typeof parsed !== 'object') return null
+
+        const isValidImu = (obj) => obj && typeof obj === 'object'
+
+        if (Array.isArray(parsed.imus)) {
+            const slots = Array(NUM_IMUS).fill(null)
+            parsed.imus.slice(0, NUM_IMUS).forEach((imu, i) => {
+                slots[i] = isValidImu(imu) ? imu : null
+            })
+            return slots
+        }
+
+        if (isValidImu(parsed.imu)) {
+            const slots = Array(NUM_IMUS).fill(null)
+            slots[0] = parsed.imu
+            return slots
+        }
+    } catch {
+        // not JSON, or no imu/imus key present
+    }
+
+    return null
+}
+
 // ── component ——
 
 function GraphDashboard() {
@@ -91,6 +125,10 @@ function GraphDashboard() {
     const [exporting, setExporting] = useState(false)
     const [showExportPrompt, setShowExportPrompt] = useState(false)
     const showExportPromptRef = useRef(false)
+
+    // IMU state (fixed 3 slots; unused ones stay null)
+    const [imuData, setImuData] = useState(Array(NUM_IMUS).fill(null))
+    const [displayIMU, setDisplayIMU] = useState(0)
 
     // Camera state
     const [cameraImage, setCameraImage] = useState(null)
@@ -138,17 +176,22 @@ function GraphDashboard() {
 
         const onSensorData = (incomingData) => {
             const values = parseSensorPacket(incomingData)
-            if (values.length === 0) return
+            if (values.length > 0) {
+                setLatestValues(values)
+                setSeries((prev) =>
+                    values.map((value, index) => {
+                        const channel = prev[index] || []
+                        const updated = [...channel, value]
+                        if (updated.length > MAX_SAMPLES) updated.shift()
+                        return updated
+                    })
+                )
+            }
 
-            setLatestValues(values)
-            setSeries((prev) =>
-                values.map((value, index) => {
-                    const channel = prev[index] || []
-                    const updated = [...channel, value]
-                    if (updated.length > MAX_SAMPLES) updated.shift()
-                    return updated
-                })
-            )
+            const imus = parseImuPacket(incomingData)
+            if (imus) {
+                setImuData((prev) => imus.map((slot, i) => (slot != null ? slot : prev[i])))
+            }
         }
 
         const onCvFrame = (payload) => {
@@ -309,8 +352,9 @@ function GraphDashboard() {
             </section>
             <section className="graphs">
                 <section className="IMUs">
-                    <IMUSlider />
-                    <IMUGraph />
+                    {imuData.map((data, i) => (
+                        <IMUGraph key={`imu-${i}`} label={`IMU ${i + 1}`} data={data} />
+                    ))}
                 </section>
                 <EMGGraph
                     series={series}

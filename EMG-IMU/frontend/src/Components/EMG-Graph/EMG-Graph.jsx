@@ -9,7 +9,7 @@ import './EMG-Graph.css'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000'
 const MAX_SAMPLES = 120
-const EMG_MAX_UV = 1000
+const EMG_MAX_UV = 1023
 const AXIS_MIN_X = 12
 const AXIS_MAX_X = 200
 const AXIS_VIEWBOX = '-12 0 224 100'

@@ -1,9 +1,108 @@
-.IMU {
-    border: 5px solid var(--border);
+
+.imugraph-section {
+    display: flex;
 }
 
-.IMUs div {
-    height: 525px;
-    width: 300px;
+.IMU {
+    border: 5px solid var(--border);
     background-color: #000000;
+    color: #f2f2f2;
+    width: 225px;
+    min-height: 300px;
+    padding: 12px;
+    box-sizing: border-box;
+    font-family: monospace;
+}
+
+.imu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.imu-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--fourth);
+}
+
+.imu-status {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 999px;
+}
+
+.imu-status.live {
+    background-color: #14f195;
+    color: #000;
+}
+
+.imu-status.offline {
+    background-color: #444;
+    color: #aaa;
+}
+
+.imu-group {
+    margin-bottom: 14px;
+}
+
+.imu-group h4 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    color: #9dd1ff;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.axis-row {
+    display: grid;
+    grid-template-columns: 14px 1fr 44px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.axis-label {
+    font-size: 11px;
+    color: #cccccc;
+}
+
+.axis-track {
+    position: relative;
+    height: 10px;
+    background-color: #1a1a1a;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.axis-zero-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: #555;
+}
+
+.axis-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 2px;
+}
+
+.axis-fill.accel {
+    background-color: #14f195;
+}
+
+.axis-fill.gyro {
+    background-color: #ff9d3a;
+}
+
+.axis-value {
+    font-size: 11px;
+    color: #f2f2f2;
+    text-align: right;
 }

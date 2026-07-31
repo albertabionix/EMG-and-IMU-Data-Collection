@@ -14,6 +14,7 @@ from Imports.state import state
 
 # Keys we look for when extracting a single IMU reading from a parsed packet.
 IMU_FIELDS = ("ax", "ay", "az", "gx", "gy", "gz")
+NUM_IMUS = 2
 
 
 def connect_serial():
@@ -34,25 +35,28 @@ def _extract_imu_reading(obj):
     if not any(key in obj for key in IMU_FIELDS):
         return None
     return {key: obj.get(key) for key in IMU_FIELDS}
-
+  
 
 def _extract_imus(parsed):
     """
-    Normalize IMU data into a list of readings, regardless of whether the
-    packet sent a single 'imu' object or a list under 'imus'.
+    Normalize IMU data into a fixed-length list of NUM_IMUS readings
+    (missing/failed IMUs become None), regardless of whether the packet
+    sent a single 'imu' object or a list under 'imus'.
     """
+    slots = [None] * NUM_IMUS
+
     if "imus" in parsed and isinstance(parsed["imus"], list):
-        imus = [_extract_imu_reading(item) for item in parsed["imus"]]
-        return [imu for imu in imus if imu is not None]
+        for i, item in enumerate(parsed["imus"][:NUM_IMUS]):
+            slots[i] = _extract_imu_reading(item)
+        return slots
 
     if "imu" in parsed:
-        single = _extract_imu_reading(parsed["imu"])
-        return [single] if single else []
+        slots[0] = _extract_imu_reading(parsed["imu"])
+        return slots
 
-    # Some firmwares might flatten everything into the top-level object
-    # (e.g. {"emg1":..., "ax":..., "ay":...}); treat that as one IMU.
-    flattened = _extract_imu_reading(parsed)
-    return [flattened] if flattened else []
+    # Flattened top-level fallback (e.g. {"emg1":..., "ax":..., "ay":...})
+    slots[0] = _extract_imu_reading(parsed)
+    return slots
 
 
 def _flatten_imu_row(imus):
