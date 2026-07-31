@@ -2,7 +2,7 @@
     EMG-Graph.jsx
     This displays both EMGs and are parsed and built in real time using sockets.
 */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 
 import './EMG-Graph.css'
@@ -119,12 +119,17 @@ function EMGChart({ values, channelIndex }) {
 
 // —— component ——
 
-const EMGGraph = ({ series }) => {
+const EMGGraph = ({ series, isLive }) => {
     const channelCount = Math.max(series.length, 2)
     return (
         <section className="emggraph-section">
             {Array.from({ length: channelCount }).map((_, index) => (
                 <section className="EMGPanel" key={`emg-${index}`}>
+                    <div className="emg-panel-header">
+                        <span className={`imu-status ${isLive ? 'live' : 'offline'}`}>
+                            {isLive ? 'LIVE' : 'NO DATA'}
+                        </span>
+                    </div>
                     <div className="emg-graph">
                         <EMGChart values={series[index] || []} channelIndex={index} />
                     </div>
@@ -136,14 +141,24 @@ const EMGGraph = ({ series }) => {
 
 export default function EMGReader() {
     const [series, setSeries] = useState([])
+    const [isLive, setIsLive] = useState(false)
+    const liveTimeoutRef = useRef(null)
 
     useEffect(() => {
         const onConnect = () => console.log('EMG socket connected')
-        const onConnectError = (error) => console.error('EMG socket error:', error)
+        const onConnectError = (error) => {
+            console.error('EMG socket error:', error)
+            setIsLive(false)
+        }
+        const onDisconnect = () => setIsLive(false)
 
         const onSensorData = (incomingData) => {
             const values = parseSensorPacket(incomingData)
             if (values.length === 0) return
+
+            setIsLive(true)
+            clearTimeout(liveTimeoutRef.current)
+            liveTimeoutRef.current = setTimeout(() => setIsLive(false), 2000)
 
             setSeries((prev) => {
                 return values.map((value, index) => {
@@ -157,16 +172,19 @@ export default function EMGReader() {
 
         socket.on('connect', onConnect)
         socket.on('connect_error', onConnectError)
+        socket.on('disconnect', onDisconnect)
         socket.on('sensor_data', onSensorData)
         socket.connect()
 
         return () => {
             socket.off('connect', onConnect)
             socket.off('connect_error', onConnectError)
+            socket.off('disconnect', onDisconnect)
             socket.off('sensor_data', onSensorData)
             socket.disconnect()
+            clearTimeout(liveTimeoutRef.current)
         }
     }, [])
 
-    return <EMGGraph series={series} />
+    return <EMGGraph series={series} isLive={isLive} />
 }

@@ -38,6 +38,7 @@ function Home() {
     const [port, setPort] = useState('COM4');
 	const [ID, setID] = useState('');
     const [error, setError] = useState('')
+    const [authError, setAuthError] = useState('')
     const [authStatus, setAuthStatus] = useState('') // CONTRIBUTOR, CONTENT_MANAGER, or '' if not authenticated
     const [authenticating, setAuthenticating] = useState(false)
     const authAbortRef = useRef(null)
@@ -99,9 +100,9 @@ function Home() {
         } catch (err) {
             setAuthStatus('')
             if (err.name === 'AbortError') {
-                setError(authCancelledRef.current ? 'Authentication cancelled' : 'Authentication timed out — please try again')
+                setAuthError(authCancelledRef.current ? 'Authentication cancelled' : 'Authentication timed out — please try again')
             } else {
-                setError('Could not reach the server to authenticate')
+                setAuthError('Could not reach the server to authenticate')
             }
         } finally {
             clearTimeout(timeoutId)
@@ -133,7 +134,7 @@ function Home() {
                             onClick={authenticating ? cancelAuthenticate : authenticate}
                         />
                     </section>
-                    {error && <p className='error'>{error}</p>}
+                    {authError && <p className='error'>{authError}</p>}
                     {/* appears below buttons when Start is clicked */}
                     {showInputs && (
                         <section id="start-section">
