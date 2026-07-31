@@ -12,7 +12,9 @@ const MAX_SAMPLES = 120
 const EMG_MAX_UV = 1023
 const AXIS_MIN_X = 12
 const AXIS_MAX_X = 200
-const AXIS_VIEWBOX = '-12 0 224 100'
+const AXIS_MIN_Y = 0
+const AXIS_MAX_Y = 100    
+const AXIS_VIEWBOX = '0 0 205 105'
 
 // —— socket ——
 
@@ -25,18 +27,18 @@ const socket = io(SOCKET_URL, {
 
 function buildPoints(values) {
     if (values.length <= 1) {
-        return `${AXIS_MIN_X},50`
+        return `${AXIS_MIN_X},${(AXIS_MIN_Y + AXIS_MAX_Y) / 2}`
     }
 
     const scaled = values.map((value) => {
         const uv = Math.max(0, Math.min(value, EMG_MAX_UV))
-        return (uv / EMG_MAX_UV) * 100
+        return (uv / EMG_MAX_UV) * (AXIS_MAX_Y - AXIS_MIN_Y)
     })
 
     return scaled
         .map((value, index) => {
             const x = AXIS_MIN_X + (index / (scaled.length - 1)) * (AXIS_MAX_X - AXIS_MIN_X)
-            const y = 100 - value
+            const y = AXIS_MAX_Y - value
             return `${x},${y}`
         })
         .join(' ')
@@ -86,21 +88,21 @@ function EMGChart({ values, channelIndex }) {
 
     const yTicks = []
     for (let i = 0; i <= EMG_MAX_UV; i += TICK_INTERVAL) {
-        const yPercent = 100 - (i / EMG_MAX_UV) * 100
+        const yPercent = AXIS_MAX_Y - (i / EMG_MAX_UV) * (AXIS_MAX_Y - AXIS_MIN_Y)
         yTicks.push({ value: i, yPercent })
     }
 
     return (
         <svg
             viewBox={AXIS_VIEWBOX}
-            preserveAspectRatio="xMinYMid meet"
+            preserveAspectRatio="none"
             aria-label={`EMG ${channelIndex + 1} graph`}
             className="emg-chart"
         >
             {yTicks.map((tick, idx) => (
                 <line key={`grid-${idx}`} x1={AXIS_MIN_X} y1={tick.yPercent} x2={AXIS_MAX_X} y2={tick.yPercent} className="grid-line" />
             ))}
-            <line x1={AXIS_MIN_X} y1="0" x2={AXIS_MIN_X} y2="100" className="axis" />
+            <line x1={AXIS_MIN_X} y1={AXIS_MIN_Y} x2={AXIS_MIN_X} y2={AXIS_MAX_Y} className="axis" />
             {yTicks.map((tick, idx) => (
                 <g key={`tick-${idx}`}>
                     <line x1={AXIS_MIN_X - 2} y1={tick.yPercent} x2={AXIS_MIN_X} y2={tick.yPercent} className="tick" />
@@ -109,7 +111,7 @@ function EMGChart({ values, channelIndex }) {
                     </text>
                 </g>
             ))}
-            <text x="-7" y="50" className="axis-label" textAnchor="middle" transform="rotate(-90 -7 50)">
+            <text x="-7" y={(AXIS_MIN_Y + AXIS_MAX_Y) / 2} className="axis-label" textAnchor="middle" transform={`rotate(-90 -7 ${(AXIS_MIN_Y + AXIS_MAX_Y) / 2})`}>
                 µV
             </text>
             <polyline points={points} className="emg-line" />

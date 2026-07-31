@@ -10,13 +10,25 @@
     background-color: #000000;
     color: #f2f2f2;
     width: 550px;
-    height: 270px;
     padding: 10px;
     box-sizing: border-box;
 }
 
+.emg-panel-header {
+    display: flex;
+    position: relative;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.emg-channel-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #9dd1ff;
+}
+
 .emg-graph {
-    height: 100%;
+    height: 210px;
     width: 100%;
 }
 
@@ -24,24 +36,6 @@
     width: 100%;
     height: 100%;
     display: block;
-}
-
-.emg-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-}
-
-.emg-header h3 {
-    margin: 0;
-    font-size: 18px;
-}
-
-.emg-header span {
-    font-size: 14px;
-    color: #9dd1ff;
-    font-weight: 600;
 }
 
 .emg-line {
@@ -80,20 +74,13 @@
     font-size: 4px;
 }
 
-.imu-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
 .imu-status {
+    margin-left: auto;
     font-size: 10px;
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 999px;
     font-family: monospace;
-
 }
 
 .imu-status.live {
