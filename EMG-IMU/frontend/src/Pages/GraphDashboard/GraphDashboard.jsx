@@ -13,7 +13,7 @@ import { io } from 'socket.io-client'
 
 import './GraphDashboard.css'
 
-import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, ExperimentName, Notification, ExportPrompt } from '../../Components'
+import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, ExperimentName, Notification, ExportPrompt, RecordingLight } from '../../Components'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000' // 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
@@ -126,7 +126,7 @@ function GraphDashboard() {
     const [showExportPrompt, setShowExportPrompt] = useState(false)
     const showExportPromptRef = useRef(false)
 
-    // IMU state (fixed 3 slots; unused ones stay null)
+    // IMU state 
     const [imuData, setImuData] = useState(Array(NUM_IMUS).fill(null))
     const [displayIMU, setDisplayIMU] = useState(0)
 
@@ -263,6 +263,7 @@ function GraphDashboard() {
         }
 
         showNotification('Recording started', 'info');
+        setIsRecording(true)
 
         return response.json()
 
@@ -280,6 +281,7 @@ function GraphDashboard() {
 
         showNotification('Recording stopped', 'info');
         setShowExportPrompt(true)
+        setIsRecording(false)
 
     }
 
@@ -355,10 +357,13 @@ function GraphDashboard() {
     return (
         <section className="main-section">
             {notification && (<Notification message={notification.message}/>)}
-            <section className='info-section'>
-                <ExperimentName subtitle='Experiment:' title={label || name}/>
-                <ExperimentName subtitle='Port:' title={newPort}/>
-                <ExperimentName subtitle='ID:' title={ID}/>
+            <section className='header'>
+                <section className='info-section'>
+                    <ExperimentName subtitle='Experiment:' title={label || name}/>
+                    <ExperimentName subtitle='Port:' title={newPort}/>
+                    <ExperimentName subtitle='ID:' title={ID}/>
+                </section>
+                <RecordingLight isRecording={isRecording}/>
             </section>
             <section className="graphs">
                 <section className="IMUs">

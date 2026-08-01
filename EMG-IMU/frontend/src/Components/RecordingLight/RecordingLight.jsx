@@ -10,7 +10,6 @@ function RecordingLight({ isRecording = true }) {
 				<div className='dotCore'></div>
 				<div className='dotPulse'></div>
 			</div>
-			<span className='recordingText'>REC</span>
 		</div>
 	);
 }

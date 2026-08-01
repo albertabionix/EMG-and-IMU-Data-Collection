@@ -8,6 +8,7 @@
     position: relative;
     overflow: hidden;
     justify-content: center;
+    align-items: center;
     padding-bottom: 10px;
     padding-top: 10px;
 }
@@ -20,10 +21,10 @@
     align-items: center;
     align-self: center;
     padding: 5px 30px; 
-    border-radius: 10px;
     gap: 100px;
     background-color: white;
     margin-bottom: 10px;
+    border: solid 4px var(--border);
 }
 
 .graphs {
@@ -37,6 +38,12 @@
     justify-content: center;
 }
 
+.header {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+}
+
 .IMUs {
     display: flex;
     align-items: center;
@@ -48,7 +55,7 @@
     display: flex;
     flex-direction: column;
     gap: 15px;
-    background-color: var(--third);
+    background-color: var(--second);
     padding: 15px;
     border-radius: 20px;
     height: 100%;
