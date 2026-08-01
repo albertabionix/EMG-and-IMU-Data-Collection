@@ -21,7 +21,7 @@ def start_recording(experiment, number_id):
     state.csv_file = open(filename, "w", newline="")
     state.csv_writer = csv.writer(state.csv_file)
     header = ["timestamp", "emg1", "emg2"]
-    for i in range(3):
+    for i in range(2):
         for axis in ("ax", "ay", "az", "gx", "gy", "gz"):
             header.append(f"imu{i + 1}_{axis}")
     state.csv_writer.writerow(header)

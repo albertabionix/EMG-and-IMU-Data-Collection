@@ -119,11 +119,3 @@ def stop_camera():
     state.camera_stop_event.set()
     state.camera_task_running = False
     return jsonify({'status': 'stopping'})
-
-
-@app.route('/api/camera')
-def camera_feed():
-    return Response(
-        cameraHandler.generate_frames(),
-        mimetype='multipart/x-mixed-replace; boundary=frame'
-    )

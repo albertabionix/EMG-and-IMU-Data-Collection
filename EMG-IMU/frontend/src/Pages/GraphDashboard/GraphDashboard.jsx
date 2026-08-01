@@ -133,6 +133,8 @@ function GraphDashboard() {
     // Camera state
     const [cameraImage, setCameraImage] = useState(null)
     const [cvStatus, setCvStatus] = useState('stopped')
+    const [cvMarkers, setCvMarkers] = useState([])
+    const [cvAngles, setCvAngles] = useState(null)
 
     // Experiment name (canonical BionixDB Action token), display label, port, and ID
     const { name, label, port, ID } = location.state || {}
@@ -202,11 +204,17 @@ function GraphDashboard() {
             if (payload?.status) setCvStatus(payload.status)
         }
 
+        const onCvData = (payload) => {
+            setCvMarkers(payload?.markers || [])
+            setCvAngles(payload?.angles ?? null)
+        }
+
         socket.on('connect', onConnect)
         socket.on('connect_error', onConnectError)
         socket.on('sensor_data', onSensorData)
         socket.on('cv_frame', onCvFrame)
         socket.on('cv_status', onCvStatus)
+        socket.on('cv_data', onCvData)
         socket.connect()
 
         return () => {
@@ -215,7 +223,9 @@ function GraphDashboard() {
             socket.off('sensor_data', onSensorData)
             socket.off('cv_frame', onCvFrame)
             socket.off('cv_status', onCvStatus)
+            socket.off('cv_data', onCvData)
             socket.disconnect()
+        
         }
     }, [state?.port])
 
@@ -366,6 +376,8 @@ function GraphDashboard() {
                     <Camera
                         cameraImage={cameraImage}
                         cvStatus={cvStatus}
+                        markers={cvMarkers}
+                        angles={cvAngles}
                         onStart={handleCameraStart}
                         onStop={handleCameraStop}
                     />

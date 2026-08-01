@@ -7,7 +7,7 @@ import numpy as np
 
 from Runs.extensions import socketio
 from Imports.state import state
-from cv_processor import detect_aruco, compute_joint_angles, compute_linear_kinematics
+from .cv_processor import detect_aruco, compute_joint_angles, compute_linear_kinematics
 
 camera = cv2.VideoCapture(0)
 
@@ -54,8 +54,13 @@ def camera_loop(*args):
         socketio.emit("cv_status", {"status": "failed"})
         return
 
+    # Store on shared state so nothing else tries to open the device separately
+    state.camera = cam
+
     print(f"Camera started on index {state.camera_index_in_use}")
     socketio.emit("cv_status", {"status": "started", "index": state.camera_index_in_use})
+
+    RESIZE_DIM = (320, 240)
 
     try:
         while not stop_event.is_set():
@@ -64,8 +69,9 @@ def camera_loop(*args):
                 socketio.sleep(0.03)
                 continue
 
+            small = cv2.resize(frame, RESIZE_DIM)
+
             try:
-                small = cv2.resize(frame, (320, 240))
                 ok, buf = cv2.imencode('.jpg', small, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
                 if ok:
                     b64str = base64.b64encode(buf.tobytes()).decode('ascii')
@@ -73,7 +79,9 @@ def camera_loop(*args):
             except Exception as e:
                 print(f"Frame encode/emit failed: {e}")
 
-            detections = detect_aruco(frame)
+            # Detect on the SAME resized frame we send to the frontend so marker
+            # coordinates line up with what's drawn on screen.
+            detections = detect_aruco(small)
             angles = compute_joint_angles(detections)
             payload = {"angles": angles, "markers": []}
             now = time.time()
@@ -94,5 +102,6 @@ def camera_loop(*args):
             cam.release()
         except Exception:
             pass
+        state.camera = None
         print("Camera stopped")
         socketio.emit("cv_status", {"status": "stopped"})

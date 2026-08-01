@@ -10,11 +10,19 @@ import './EMG-Graph.css'
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000'
 const MAX_SAMPLES = 120
 const EMG_MAX_UV = 1023
-const AXIS_MIN_X = 12
-const AXIS_MAX_X = 200
-const AXIS_MIN_Y = 0
-const AXIS_MAX_Y = 100    
-const AXIS_VIEWBOX = '0 0 205 105'
+const AXIS_MIN_X = 6
+const AXIS_MAX_X = 205
+const AXIS_MIN_Y = 6
+const AXIS_MAX_Y = 110
+const AXIS_VIEWBOX_X = -12
+const AXIS_VIEWBOX_Y = 0
+const AXIS_VIEWBOX_WIDTH = 224
+const AXIS_VIEWBOX_HEIGHT = 112
+const AXIS_VIEWBOX = `${AXIS_VIEWBOX_X} ${AXIS_VIEWBOX_Y} ${AXIS_VIEWBOX_WIDTH} ${AXIS_VIEWBOX_HEIGHT}`
+
+// single source of truth for SVG-y -> CSS top% conversion
+const toTopPercent = (svgY) =>
+    ((svgY - AXIS_VIEWBOX_Y) / AXIS_VIEWBOX_HEIGHT) * 100
 
 // —— socket ——
 
@@ -93,29 +101,33 @@ function EMGChart({ values, channelIndex }) {
     }
 
     return (
-        <svg
-            viewBox={AXIS_VIEWBOX}
-            preserveAspectRatio="none"
-            aria-label={`EMG ${channelIndex + 1} graph`}
-            className="emg-chart"
-        >
-            {yTicks.map((tick, idx) => (
-                <line key={`grid-${idx}`} x1={AXIS_MIN_X} y1={tick.yPercent} x2={AXIS_MAX_X} y2={tick.yPercent} className="grid-line" />
-            ))}
-            <line x1={AXIS_MIN_X} y1={AXIS_MIN_Y} x2={AXIS_MIN_X} y2={AXIS_MAX_Y} className="axis" />
-            {yTicks.map((tick, idx) => (
-                <g key={`tick-${idx}`}>
-                    <line x1={AXIS_MIN_X - 2} y1={tick.yPercent} x2={AXIS_MIN_X} y2={tick.yPercent} className="tick" />
-                    <text x={AXIS_MIN_X - 3} y={tick.yPercent + 0.2} className="tick-label" textAnchor="end" dominantBaseline="middle">
+        <div className="emg-chart-wrapper">
+            <svg
+                viewBox={AXIS_VIEWBOX}
+                preserveAspectRatio="none"
+                aria-label={`EMG ${channelIndex + 1} graph`}
+                className="emg-chart"
+            >
+                {yTicks.map((tick, idx) => (
+                    <line key={`grid-${idx}`} x1={AXIS_MIN_X} y1={tick.yPercent} x2={AXIS_MAX_X} y2={tick.yPercent} className="grid-line" />
+                ))}
+                <line x1={AXIS_MIN_X} y1={AXIS_MIN_Y} x2={AXIS_MIN_X} y2={AXIS_MAX_Y} className="axis" />
+                <polyline points={points} className="emg-line" />
+            </svg>
+
+            <div className="emg-tick-labels">
+                {yTicks.map((tick, idx) => (
+                    <span
+                        key={`ticklabel-${idx}`}
+                        className="emg-tick-label"
+                        style={{ top: `${toTopPercent(tick.yPercent)}%` }}
+                    >
                         {tick.value}
-                    </text>
-                </g>
-            ))}
-            <text x="-7" y={(AXIS_MIN_Y + AXIS_MAX_Y) / 2} className="axis-label" textAnchor="middle" transform={`rotate(-90 -7 ${(AXIS_MIN_Y + AXIS_MAX_Y) / 2})`}>
-                µV
-            </text>
-            <polyline points={points} className="emg-line" />
-        </svg>
+                    </span>
+                ))}
+                <span className="emg-axis-label">µV</span>
+            </div>
+        </div>
     )
 }
 
@@ -128,6 +140,7 @@ const EMGGraph = ({ series, isLive }) => {
             {Array.from({ length: channelCount }).map((_, index) => (
                 <section className="EMGPanel" key={`emg-${index}`}>
                     <div className="emg-panel-header">
+                        <h3>{`EMG ${index + 1}`}</h3>
                         <span className={`imu-status ${isLive ? 'live' : 'offline'}`}>
                             {isLive ? 'LIVE' : 'NO DATA'}
                         </span>
