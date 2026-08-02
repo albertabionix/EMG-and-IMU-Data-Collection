@@ -19,7 +19,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000' //
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
 
 const MAX_SAMPLES = 120
-const EMG_MAX_UV = 1023
+const EMG_MAX_UV = 4095
 
 const socket = io(SOCKET_URL, {
     transports: ['polling', 'websocket'],
