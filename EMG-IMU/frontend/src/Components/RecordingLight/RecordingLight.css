@@ -1,9 +1,12 @@
 /* Container styling with a sleek dark glass effect */
 .RecordingLight {
+    position: fixed;
+    top: 72px;
+    left: 16px;
+    z-index: 1000;
     display: inline-flex;
     align-items: center;
     gap: 12px;
-    backdrop-filter: blur(10px);
     padding: 8px 16px;
     border-radius: 30px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -13,8 +16,8 @@
 /* Position container for the overlapping pulse rings */
 .recordingIndicator {
     position: relative;
-    width: 20px;
-    height: 20px;
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -22,8 +25,8 @@
 
 /* The solid inner red core */
 .dotCore {
-    width: 20px;
-    height: 20px;
+    width: 30px;
+    height: 30px;
     background-color: #ff3b30;
     border-radius: 50%;
     z-index: 2;

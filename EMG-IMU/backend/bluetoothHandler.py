@@ -10,6 +10,8 @@ from Runs.extensions import socketio
 from Imports.state import state
 import calibration
 
+from Camera import recording
+
 
 # Keys we look for when extracting a single IMU reading from a parsed packet.
 IMU_FIELDS = ("ax", "ay", "az", "gx", "gy", "gz")
@@ -76,28 +78,25 @@ def _process_line(line):
         parsed = None
 
     payload = {"raw": line}
+    now = time.time()
+    raw_imus = None
 
     if isinstance(parsed, dict):
-        imus = _extract_imus(parsed)
-        if imus:
-            calibration.process_sample(imus)  # buffers samples, no longer gates the emit
+        raw_imus = _extract_imus(parsed)
+        calibrated_imus = raw_imus
+        if raw_imus:
+            calibration.process_sample(raw_imus)  # buffers samples, no longer gates the emit
             if not calibration.is_calibrating():
-                imus = calibration.apply_offsets(imus)
-            payload["imus"] = imus
-
+                calibrated_imus = calibration.apply_offsets(raw_imus)
+            payload["imus"] = calibrated_imus
 
     socketio.emit("sensor_data", payload)
 
-    if state.is_recording and state.csv_writer and isinstance(parsed, dict):
-        try:
-            emg1 = parsed.get("emg1", "")
-            emg2 = parsed.get("emg2", "")
-            imus = _extract_imus(parsed)
-            row = [time.time(), emg1, emg2] + _flatten_imu_row(imus)
-            state.csv_writer.writerow(row)
-            state.csv_file.flush()
-        except Exception as csv_error:
-            print(f"CSV write error: {csv_error}")
+    if state.is_recording and isinstance(parsed, dict):
+        emg1 = parsed.get("emg1", "")
+        emg2 = parsed.get("emg2", "")
+        recording.write_emg_row(now, emg1, emg2)
+        recording.write_imu_row(now, raw_imus if raw_imus else [None] * NUM_IMUS)
 
 
 def _notification_handler(sender, data):

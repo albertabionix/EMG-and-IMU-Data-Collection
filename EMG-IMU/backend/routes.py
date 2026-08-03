@@ -30,11 +30,11 @@ def auth_login():
 @app.route('/record/start', methods=['POST'])
 def start_recording_route():
     data = request.get_json()
-    filename = Camera.recording.start_recording(
+    files = Camera.recording.start_recording(
         data.get("experiment", "unknown"),
         data.get("numberID", "0"),
     )
-    return jsonify({"filename": filename})
+    return jsonify({"files": files})
 
 
 @app.route('/record/stop', methods=['POST'])

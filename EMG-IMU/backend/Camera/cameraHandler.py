@@ -9,6 +9,8 @@ from Runs.extensions import socketio
 from Imports.state import state
 from .cv_processor import detect_aruco, compute_joint_angles, compute_linear_kinematics
 
+from . import recording
+
 camera = cv2.VideoCapture(0)
 
 
@@ -96,6 +98,7 @@ def camera_loop(*args):
                 })
 
             socketio.emit("cv_data", payload)
+            recording.write_camera_row(now, payload["markers"], payload["angles"])
             socketio.sleep(0.03)
     finally:
         try:
