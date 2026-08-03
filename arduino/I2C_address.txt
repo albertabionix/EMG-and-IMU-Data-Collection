@@ -1,0 +1,56 @@
+#include <Wire.h>
+
+// Match the pins your main sketch uses
+#define I2C_SDA 21
+#define I2C_SCL 22
+
+void setup() {
+  Serial.begin(115200);
+  while (!Serial) { delay(10); }
+
+  delay(1000); // give the serial monitor a moment to attach
+
+  Wire.begin(I2C_SDA, I2C_SCL);
+  Wire.setClock(100000); // slow/standard speed for scanning - more reliable than 400kHz
+
+  Serial.println();
+  Serial.println("I2C Scanner starting...");
+  Serial.printf("SDA=%d SCL=%d\n", I2C_SDA, I2C_SCL);
+}
+
+void loop() {
+  Serial.println("Scanning...");
+
+  int devicesFound = 0;
+
+  for (uint8_t address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    uint8_t error = Wire.endTransmission();
+
+    if (error == 0) {
+      Serial.printf("Device found at address 0x%02X", address);
+
+      // Flag known addresses so you don't have to look them up
+      if (address == 0x6A || address == 0x6B) {
+        Serial.print("  <-- ISM330DHCX (SA0 low=0x6A, high=0x6B)");
+      } else if (address == 0x4A || address == 0x4B) {
+        Serial.print("  <-- BNO085 (ADR low=0x4A, high=0x4B)");
+      }
+
+      Serial.println();
+      devicesFound++;
+    } else if (error == 4) {
+      Serial.printf("Unknown error at address 0x%02X\n", address);
+    }
+    // error == 2 (NACK on address send) just means "nothing here" - skip silently
+  }
+
+  if (devicesFound == 0) {
+    Serial.println("No I2C devices found. Check wiring, power, and pull-up resistors.");
+  } else {
+    Serial.printf("Scan complete. %d device(s) found.\n", devicesFound);
+  }
+
+  Serial.println();
+  delay(3000); // rescan every 3 seconds so you can watch for intermittent connections
+}
