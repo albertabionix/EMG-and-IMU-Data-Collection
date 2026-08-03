@@ -10,7 +10,7 @@ HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "5000"))
 
 if __name__ == "__main__":
-    socketio.start_background_task(read_ble)
+    socketio.start_background_task(read_serial)
     socketio.start_background_task(camera_loop)
     socketio.run(
         app,

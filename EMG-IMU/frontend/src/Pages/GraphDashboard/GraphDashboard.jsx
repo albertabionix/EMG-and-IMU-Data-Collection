@@ -13,7 +13,7 @@ import { io } from 'socket.io-client'
 
 import './GraphDashboard.css'
 
-import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, ExperimentName, Notification, ExportPrompt, RecordingLight } from '../../Components'
+import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, ExperimentName, Notification, ExportPrompt, RecordingLight, ModalWrapper } from '../../Components'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000' // 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
@@ -135,6 +135,9 @@ function GraphDashboard() {
     const [cvStatus, setCvStatus] = useState('stopped')
     const [cvMarkers, setCvMarkers] = useState([])
     const [cvAngles, setCvAngles] = useState(null)
+
+    // Terminal state
+    const [terminalOpen, setTerminalOpen] = useState(false);
 
     // Experiment name (canonical BionixDB Action token), display label, port, and ID
     const { name, label, port, ID } = location.state || {}
@@ -352,6 +355,10 @@ function GraphDashboard() {
         return response.json()
     }
 
+    function handleTerminal() {
+        setTerminalOpen(true)
+    }
+
     // —— render ——
 
     return (
@@ -392,6 +399,7 @@ function GraphDashboard() {
                     <GraphButton label="Stop"   name="stop"   onClick={handleStop} />
                     <GraphButton label="Port"   name="port"   onClick={handlePortChange} />
                     <GraphButton label="Back"   name="back"   onClick={handleHome} />
+                    <GraphButton label="Terminal" name="terminal" onClick={handleTerminal} />
                 </section>
             </section>
             {showExportPrompt && (
@@ -401,6 +409,11 @@ function GraphDashboard() {
                     exporting={exporting}
                 />
             )}
+            <ModalWrapper
+                isOpen={terminalOpen}
+                onClose={() => setTerminalOpen(false)}
+                socket={socket}
+            />
         </section>
     )
 }
