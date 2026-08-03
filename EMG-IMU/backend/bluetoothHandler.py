@@ -96,7 +96,6 @@ def _process_line(line):
 def _notification_handler(sender, data):
     """Bleak calls this synchronously for every BLE notification chunk."""
     global _data_buffer
-    print(f"RAW NOTIFY ({len(data)} bytes): {data!r}")   # <-- add this
     try:
         _data_buffer += data.decode("utf-8", errors="ignore")
         while "\n" in _data_buffer:
