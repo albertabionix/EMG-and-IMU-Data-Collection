@@ -6,6 +6,7 @@ from Imports.state import state
 import auth
 import Camera.recording
 from Camera import cameraHandler
+import calibration
 
 
 @app.after_request
@@ -55,6 +56,26 @@ def export_route():
     result, status = Camera.recording.export_recording()
     return jsonify(result), status
 
+# ---- IMU calibration ----
+
+@app.route('/calibrate/imu/start', methods=['POST'])
+def start_calibrate_imu():
+    if calibration.is_calibrating():
+        return jsonify({'status': 'already_calibrating'}), 409
+
+    duration = 5.0
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        duration = data.get('duration', duration)
+
+    calibration.start_calibration(duration=duration)
+    return jsonify({'status': 'started', 'duration': duration})
+
+
+@app.route('/calibrate/imu/status', methods=['GET'])
+def calibrate_imu_status():
+    return jsonify({'calibrating': calibration.is_calibrating()})
+
 
 # ======== IMU recording (skeleton — sensor pipeline not implemented yet) ============
 # Mirror start_recording_route()/stop_recording_route() above once IMU data collection
@@ -89,7 +110,6 @@ def start_recording_cvkas():
 def stop_recording_cvkas():
     return jsonify({'error': 'CVKAS recording not implemented yet'}), 501
 # ============ CVKAS recording (skeleton — not yet persisted to disk) ===========
-
 
 # ---- Misc / hardware control ----
 

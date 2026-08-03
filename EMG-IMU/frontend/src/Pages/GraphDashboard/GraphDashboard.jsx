@@ -139,6 +139,9 @@ function GraphDashboard() {
     // Terminal state
     const [terminalOpen, setTerminalOpen] = useState(false);
 
+    // Calibration state
+    const [isCalibrating, setIsCalibrating] = useState(false)
+
     // Experiment name (canonical BionixDB Action token), display label, port, and ID
     const { name, label, port, ID } = location.state || {}
 
@@ -150,6 +153,13 @@ function GraphDashboard() {
         if (!showExportPromptRef.current) return
         fetch(`${API_BASE_URL}/record/discard`, { method: 'POST', keepalive: true })
         showExportPromptRef.current = false
+    }
+
+    const onCalibrationStatus = (payload) => {
+        if (payload?.status === 'complete') {
+            setIsCalibrating(false)
+            showNotification('Calibration complete', 'info')
+        }
     }
 
     useEffect(() => {
@@ -193,7 +203,12 @@ function GraphDashboard() {
                 )
             }
 
-            const imus = parseImuPacket(incomingData)
+            // Prefer the backend's pre-parsed, calibrated imus array if present.
+            // Fall back to parsing raw only if the backend didn't send it.
+            const imus = Array.isArray(incomingData.imus)
+                ? incomingData.imus
+                : parseImuPacket(incomingData)
+
             if (imus) {
                 setImuData((prev) => imus.map((slot, i) => (slot != null ? slot : prev[i])))
             }
@@ -218,6 +233,7 @@ function GraphDashboard() {
         socket.on('cv_frame', onCvFrame)
         socket.on('cv_status', onCvStatus)
         socket.on('cv_data', onCvData)
+        socket.on('calibration_status', onCalibrationStatus)
         socket.connect()
 
         return () => {
@@ -227,6 +243,7 @@ function GraphDashboard() {
             socket.off('cv_frame', onCvFrame)
             socket.off('cv_status', onCvStatus)
             socket.off('cv_data', onCvData)
+            socket.off('calibration_status', onCalibrationStatus)
             socket.disconnect()
         
         }
@@ -359,6 +376,33 @@ function GraphDashboard() {
         setTerminalOpen(true)
     }
 
+    async function handleCalibrate() {
+        if (isCalibrating) return
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/calibrate/imu/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ duration: 5 }),
+            })
+
+            if (response.status === 409) {
+                showNotification('Already calibrating', 'info')
+                return
+            }
+
+            if (!response.ok) {
+                throw new Error(`Failed to calibrate: ${response.status}`)
+            }
+
+            setIsCalibrating(true)
+            showNotification('Calibrating... hold still', 'info')
+        } catch (err) {
+            console.error('Calibration failed:', err)
+            showNotification('Calibration failed', 'info')
+        }
+    }
+
     // —— render ——
 
     return (
@@ -398,8 +442,14 @@ function GraphDashboard() {
                     <GraphButton label="Record" name="record" onClick={handleRecord} />
                     <GraphButton label="Stop"   name="stop"   onClick={handleStop} />
                     <GraphButton label="Port"   name="port"   onClick={handlePortChange} />
-                    <GraphButton label="Back"   name="back"   onClick={handleHome} />
                     <GraphButton label="Terminal" name="terminal" onClick={handleTerminal} />
+                    <GraphButton
+                        label={isCalibrating ? 'Calibrating...' : 'Calibrate'}
+                        name="calibrate"
+                        onClick={handleCalibrate}
+                        disabled={isCalibrating}
+                    />
+                    <GraphButton label="Back"   name="back"   onClick={handleHome} />
                 </section>
             </section>
             {showExportPrompt && (

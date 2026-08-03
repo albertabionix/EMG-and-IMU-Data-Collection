@@ -8,6 +8,8 @@ from bleak.exc import BleakError
 
 from Runs.extensions import socketio
 from Imports.state import state
+import calibration
+
 
 # Keys we look for when extracting a single IMU reading from a parsed packet.
 IMU_FIELDS = ("ax", "ay", "az", "gx", "gy", "gz")
@@ -19,6 +21,7 @@ RECONNECT_DELAY_S = 3
 
 # Buffer for assembling newline-terminated JSON lines out of BLE notification chunks.
 _data_buffer = ""
+calibration.load_offsets()
 
 
 def _extract_imu_reading(obj):
@@ -77,7 +80,11 @@ def _process_line(line):
     if isinstance(parsed, dict):
         imus = _extract_imus(parsed)
         if imus:
+            calibration.process_sample(imus)  # buffers samples, no longer gates the emit
+            if not calibration.is_calibrating():
+                imus = calibration.apply_offsets(imus)
             payload["imus"] = imus
+
 
     socketio.emit("sensor_data", payload)
 
