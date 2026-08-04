@@ -41,26 +41,28 @@ def start_recording(experiment, number_id):
         folder, experiment_clean, number_id, timestamp, "imu", imu_header
     )
 
-    camera_header = [
+    # NOTE: modality string here must match BionixDB's MODALITY_FOLDERS / upload_session
+    # kwarg names ("emg", "imu", "cvkas") — it used to be "camera", which broke export.
+    cvkas_header = [
         "timestamp", "marker_id", "pos_x", "pos_y",
         "velocity", "acceleration", "hip_angle", "knee_angle",
     ]
-    camera_filename, state.camera_csv_file, state.camera_csv_writer = _open_writer(
-        folder, experiment_clean, number_id, timestamp, "camera", camera_header
+    cvkas_filename, state.cvkas_csv_file, state.cvkas_csv_writer = _open_writer(
+        folder, experiment_clean, number_id, timestamp, "cvkas", cvkas_header
     )
 
     state.is_recording = True
     state.recording_files = {
         "emg": emg_filename,
         "imu": imu_filename,
-        "camera": camera_filename,
+        "cvkas": cvkas_filename,
     }
     # Stashed so stop_recording() can build state.last_recording without the
     # route needing to pass experiment/number_id back in a second time.
     state.recording_action = experiment
     state.recording_pid = number_id
 
-    print(f"Recording started: {emg_filename}, {imu_filename}, {camera_filename}")
+    print(f"Recording started: {emg_filename}, {imu_filename}, {cvkas_filename}")
     return state.recording_files
 
 
@@ -70,7 +72,7 @@ def stop_recording():
     for file_attr, writer_attr in (
         ("emg_csv_file", "emg_csv_writer"),
         ("imu_csv_file", "imu_csv_writer"),
-        ("camera_csv_file", "camera_csv_writer"),
+        ("cvkas_csv_file", "cvkas_csv_writer"),
     ):
         file_handle = getattr(state, file_attr, None)
         if file_handle:
@@ -85,6 +87,34 @@ def stop_recording():
     )
 
     print("Recording stopped")
+
+
+def _normalize_pid(pid):
+    """Normalize a raw pid value (from the recording form/state) into the shape
+    BionixDB._format_pid() expects: either an int, or an already-formatted
+    'pNNN' string. Handles plain digit strings ("1", "12") and loose 'p'-prefixed
+    strings ("p1", "P001", " p12 ") by coercing them to the zero-padded form.
+    """
+    if isinstance(pid, int):
+        return pid
+
+    if pid is None:
+        raise ValueError("Recording has no participant ID (pid) set — cannot export.")
+
+    pid_str = str(pid).strip()
+    if not pid_str:
+        raise ValueError("Recording has an empty participant ID (pid) — cannot export.")
+
+    if pid_str.isdigit():
+        return int(pid_str)
+
+    if pid_str.lower().startswith("p") and pid_str[1:].isdigit():
+        return f"p{int(pid_str[1:]):03d}"
+
+    raise ValueError(
+        f"Could not parse participant ID '{pid}' — expected a number (e.g. 1) "
+        "or 'pNNN' format (e.g. p001)."
+    )
 
 
 def _init_recording(action, pid, files):
@@ -123,26 +153,26 @@ def write_imu_row(timestamp, imus):
         print(f"IMU CSV write error: {error}")
 
 
-def write_camera_row(timestamp, markers, angles):
+def write_cvkas_row(timestamp, markers, angles):
     """markers: list of {'id','position':[x,y],'velocity','acceleration'}. angles: {'hip','knee'} or None."""
-    if not (state.is_recording and getattr(state, "camera_csv_writer", None)):
+    if not (state.is_recording and getattr(state, "cvkas_csv_writer", None)):
         return
     try:
         hip = angles.get("hip") if angles else ""
         knee = angles.get("knee") if angles else ""
 
         if not markers:
-            state.camera_csv_writer.writerow([timestamp, "", "", "", "", "", hip, knee])
+            state.cvkas_csv_writer.writerow([timestamp, "", "", "", "", "", hip, knee])
         else:
             for m in markers:
                 pos = m.get("position") or [None, None]
-                state.camera_csv_writer.writerow([
+                state.cvkas_csv_writer.writerow([
                     timestamp, m.get("id"), pos[0], pos[1],
                     m.get("velocity"), m.get("acceleration"), hip, knee,
                 ])
-        state.camera_csv_file.flush()
+        state.cvkas_csv_file.flush()
     except Exception as error:
-        print(f"Camera CSV write error: {error}")
+        print(f"CVKAS CSV write error: {error}")
 
 
 def discard_recording():

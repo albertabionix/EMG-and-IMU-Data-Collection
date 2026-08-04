@@ -30,3 +30,6 @@ tests/
 # Authentication
 token.json
 __pycache__/
+
+# Calibration
+imu_calibration.json

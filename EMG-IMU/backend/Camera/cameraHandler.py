@@ -98,7 +98,7 @@ def camera_loop(*args):
                 })
 
             socketio.emit("cv_data", payload)
-            recording.write_camera_row(now, payload["markers"], payload["angles"])
+            recording.write_cvkas_row(now, payload["markers"], payload["angles"])
             socketio.sleep(0.03)
     finally:
         try:
