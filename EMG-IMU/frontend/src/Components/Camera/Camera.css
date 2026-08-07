@@ -12,12 +12,12 @@
 .camera-preview {
     border: 6px solid var(--border);
     height: 386px;
-    width: auto;
+    width: 511px;
 }
 
 .camera-panel img {
     height: 375px;
-    width: 500px;
+    width: auto;
 }
 
 .camera-placeholder {
@@ -35,7 +35,7 @@
     border: 5px solid var(--border);
     background-color: #000000;
     color: var(--fourth);
-    width: 550px;
+    width: 511px;
     padding: 10px;
     box-sizing: border-box;
     height: 96px;

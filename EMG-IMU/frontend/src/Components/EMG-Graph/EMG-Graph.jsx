@@ -176,13 +176,22 @@ export default function EMGReader() {
             liveTimeoutRef.current = setTimeout(() => setIsLive(false), 2000)
 
             setSeries((prev) => {
-                return values.map((value, index) => {
-                    const prevChannel = prev[index] || []
-                    const updated = [...prevChannel, value]
-                    if (updated.length > MAX_SAMPLES) updated.shift()
-                    return updated
-                })
-            })
+                // Always maintain exactly 2 channels (EMG 1 and EMG 2)
+                const channelCount = 2;
+                
+                return Array.from({ length: channelCount }).map((_, index) => {
+                    const prevChannel = prev[index] || [];
+                    
+                    // Use the incoming value if available; otherwise, repeat the last value
+                    const newValue = (values[index] !== undefined && Number.isFinite(values[index])) 
+                    ? values[index] 
+                    : (prevChannel[prevChannel.length - 1] ?? 0);
+
+                    const updated = [...prevChannel, newValue];
+                    if (updated.length > MAX_SAMPLES) updated.shift();
+                    return updated;
+                });
+            });
         }
 
         socket.on('connect', onConnect)
