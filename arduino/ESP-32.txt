@@ -12,7 +12,6 @@
 #define I2C_SCL 22 
 
 #define NUM_IMUS 2
-// 1. UPDATED: Correct I2C addresses for ISM330DLC (Pin SD0 to GND = 0x6A, to VCC = 0x6B)
 const uint8_t imuAddr[NUM_IMUS] = {0x6A, 0x6B}; 
 
 #define SAMPLE_RATE_HZ 500
@@ -37,7 +36,6 @@ hw_timer_t *timer = NULL;
 volatile bool sampleFlag = false;
 void IRAM_ATTR onTimer() { sampleFlag = true; }
 
-// 2. UPDATED: Correct object class for ISM330 hardware footprints
 Adafruit_ISM330DHCX ism[NUM_IMUS]; 
 bool imuConnected[NUM_IMUS] = {false, false};
 
@@ -47,6 +45,10 @@ struct ImuReading {
   float gx, gy, gz;
 };
 ImuReading lastImu[NUM_IMUS];
+
+int readEmgRaw(int pin) {
+  return analogRead(pin);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -164,8 +166,8 @@ void loop() {
   if (sampleFlag) {
     sampleFlag = false;
     tickCount++;
-    int emg1 = readEmgAveraged(EMG1_PIN);
-    int emg2 = readEmgAveraged(EMG2_PIN);
+    int emg1 = readEmgRaw(EMG1_PIN);
+    int emg2 = readEmgRaw(EMG2_PIN);
     
     if (tickCount % IMU_REFRESH_EVERY_N == 0) {
       for (int i = 0; i < NUM_IMUS; i++) {

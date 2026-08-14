@@ -1,6 +1,6 @@
 /*
     GraphDashboard.jsx
-    There are two types of sockets that are used:
+    There are two types of commuication styles that are used:
         Polling: A technique where a program repeatedly checks the status of a resource at regular intervals to see if an event has changed.
         Socket: Open a two-way interactive communication session between the user's browser and a server without having to poll.
     Owns the single socket connection for the page.
@@ -9,22 +9,22 @@
 
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useRef } from 'react'
-import { io } from 'socket.io-client'
 
-import './GraphDashboard.css'
+import './Dashboard.css'
 
-import { Camera, EMGGraph, GraphButton, IMUGraph, Timer, ExperimentName, Notification, ExportPrompt, RecordingLight, ModalWrapper } from '../../Components'
+import { 
+    Camera, EMGGraph, GraphButton, IMUGraph, Timer, ExperimentName, Notification, ExportPrompt, RecordingLight, ModalWrapper 
+} from '../../Components'
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000' // 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
+import { 
+    createFlaskSocket, startCamera, stopCamera, startRecording, stopRecording, exportRecording, discardRecording, 
+    changePort as requestPortChange, startImuCalibration 
+} from '../../services'
 
 const MAX_SAMPLES = 120
 const EMG_MAX_UV = 4095
 
-const socket = io(SOCKET_URL, {
-    transports: ['polling', 'websocket'],
-    autoConnect: false,
-})
+const socket = createFlaskSocket()
 
 // —— helpers ——
 
@@ -102,7 +102,7 @@ function parseImuPacket(packet) {
 
 // ── component ——
 
-function GraphDashboard() {
+function Dashboard() {
     const { state } = useLocation()
     const navigate = useNavigate()
     const location = useLocation()
@@ -151,7 +151,7 @@ function GraphDashboard() {
     // is never uploaded and never cleaned up. keepalive lets the request outlive the page.
     function discardIfPromptAbandoned() {
         if (!showExportPromptRef.current) return
-        fetch(`${API_BASE_URL}/record/discard`, { method: 'POST', keepalive: true })
+        discardRecording({ keepalive: true })
         showExportPromptRef.current = false
     }
 
@@ -253,7 +253,7 @@ function GraphDashboard() {
 
     async function handleCameraStart() {
         try {
-            await fetch(`${API_BASE_URL}/camera/start`, { method: 'POST' })
+            await startCamera()
         } catch (err) {
             console.error('Camera start failed:', err)
         }
@@ -261,7 +261,7 @@ function GraphDashboard() {
 
     async function handleCameraStop() {
         try {
-            await fetch(`${API_BASE_URL}/camera/stop`, { method: 'POST' })
+            await stopCamera()
         } catch (err) {
             console.error('Camera stop failed:', err)
         }
@@ -270,48 +270,49 @@ function GraphDashboard() {
     // —— button handlers ——
 
     async function handleRecord() {
-        timerFunctions.current?.start()
-        const response = await fetch(`${API_BASE_URL}/record/start`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ experiment: name, numberID: ID }),
-        })
+        try {
+            timerFunctions.current?.start()
+            const { response, data: result } = await startRecording({ experiment: name, numberID: ID })
 
-        if (!response.ok) {
-            throw new Error(`Failed to record: ${response.status}`)
-            showNotification('Recording failed', 'info');
+            if (!response.ok || result?.error) {
+                throw new Error(result?.error || `Failed to record: ${response.status}`)
+            }
+
+            showNotification('Recording started', 'info')
+            setIsRecording(true)
+            return result
+        } catch (err) {
+            console.error('Recording start failed:', err)
+            showNotification('Recording failed', 'info')
         }
-
-        showNotification('Recording started', 'info');
-        setIsRecording(true)
-
-        return response.json()
 
     }
 
     async function handleStop() {
-        timerFunctions.current?.stop()
-        const response = await fetch(`${API_BASE_URL}/record/stop`, {
-            method: 'POST',
-        })
+        try {
+            timerFunctions.current?.stop()
+            const response = await stopRecording()
 
-        if (!response.ok) {
-            throw new Error(`Failed to stop: ${response.status}`)
+            if (!response.ok) {
+                throw new Error(`Failed to stop: ${response.status}`)
+            }
+
+            showNotification('Recording stopped', 'info')
+            setShowExportPrompt(true)
+            setIsRecording(false)
+        } catch (err) {
+            console.error('Recording stop failed:', err)
+            showNotification('Recording stop failed', 'info')
         }
-
-        showNotification('Recording stopped', 'info');
-        setShowExportPrompt(true)
-        setIsRecording(false)
 
     }
 
     async function handleExport() {
         setExporting(true)
         try {
-            const response = await fetch(`${API_BASE_URL}/export`, { method: 'POST' })
-            const result = await response.json()
-            if (!response.ok || !result.uploaded) {
-                showNotification(result.error || 'Export failed', 'info')
+            const { response, data: result } = await exportRecording()
+            if (!response.ok || !result?.uploaded) {
+                showNotification(result?.error || 'Export failed', 'info')
                 return
             }
             showNotification(`Uploaded as ${Object.values(result.names).join(', ')}`, 'info')
@@ -325,10 +326,9 @@ function GraphDashboard() {
 
     async function handleCancelExport() {
         try {
-            const response = await fetch(`${API_BASE_URL}/record/discard`, { method: 'POST' })
-            const result = await response.json()
-            if (!response.ok || !result.discarded) {
-                showNotification(result.error || 'Failed to discard recording', 'info')
+            const { response, data: result } = await discardRecording()
+            if (!response.ok || !result?.discarded) {
+                showNotification(result?.error || 'Failed to discard recording', 'info')
                 return
             }
             showNotification('Recording discarded', 'info')
@@ -357,11 +357,7 @@ function GraphDashboard() {
         const newPort = portName || prompt('Enter your port name')
         if (!newPort) return
 
-        const response = await fetch(`${API_BASE_URL}/change-port`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ value: newPort }),
-        })
+        const { response } = await requestPortChange(newPort)
 
         if (!response.ok) {
             throw new Error(`Failed to change port: ${response.status}`)
@@ -380,11 +376,7 @@ function GraphDashboard() {
         if (isCalibrating) return
 
         try {
-            const response = await fetch(`${API_BASE_URL}/calibrate/imu/start`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ duration: 5 }),
-            })
+            const response = await startImuCalibration(5)
 
             if (response.status === 409) {
                 showNotification('Already calibrating', 'info')
@@ -439,8 +431,11 @@ function GraphDashboard() {
                     />
                 </section>
                 <section className="buttons">
-                    <GraphButton label="Record" name="record" onClick={handleRecord} />
-                    <GraphButton label="Stop"   name="stop"   onClick={handleStop} />
+                    <GraphButton
+                        label={isRecording ? 'Stop' : 'Record'}
+                        name={isRecording ? 'stop' : 'record'}
+                        onClick={isRecording ? handleStop : handleRecord}
+                    />
                     <GraphButton label="Port"   name="port"   onClick={handlePortChange} />
                     <GraphButton label="Terminal" name="terminal" onClick={handleTerminal} />
                     <GraphButton
@@ -468,4 +463,4 @@ function GraphDashboard() {
     )
 }
 
-export default GraphDashboard
+export default Dashboard

@@ -3,13 +3,13 @@
     This displays both EMGs and are parsed and built in real time using sockets.
 */
 import { useEffect, useRef, useState } from 'react'
-import { io } from 'socket.io-client'
 
 import './EMG-Graph.css'
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000'
+import { createFlaskSocket } from '../../services'
+
 const MAX_SAMPLES = 120
-const EMG_MAX_UV = 1023
+const ADC_MAX_COUNT = 4095 // 12-bit ADC (analogReadResolution(12) in firmware)
 const AXIS_MIN_X = 6
 const AXIS_MAX_X = 205
 const AXIS_MIN_Y = 6
@@ -26,10 +26,7 @@ const toTopPercent = (svgY) =>
 
 // —— socket ——
 
-const socket = io(SOCKET_URL, {
-    transports: ['polling', 'websocket'],
-    autoConnect: false,
-})
+const socket = createFlaskSocket()
 
 // —— helpers ——
 
@@ -39,8 +36,8 @@ function buildPoints(values) {
     }
 
     const scaled = values.map((value) => {
-        const uv = Math.max(0, Math.min(value, EMG_MAX_UV))
-        return (uv / EMG_MAX_UV) * (AXIS_MAX_Y - AXIS_MIN_Y)
+        const count = Math.max(0, Math.min(value, ADC_MAX_COUNT))
+        return (count / ADC_MAX_COUNT) * (AXIS_MAX_Y - AXIS_MIN_Y)
     })
 
     return scaled
@@ -51,8 +48,6 @@ function buildPoints(values) {
         })
         .join(' ')
 }
-
-// 
 
 function parseSensorPacket(packet) {
     if (!packet || packet.raw == null) return []
@@ -92,11 +87,11 @@ function parseSensorPacket(packet) {
 
 function EMGChart({ values, channelIndex }) {
     const points = buildPoints(values)
-    const TICK_INTERVAL = 250
+    const TICK_INTERVAL = 1000 // ADC counts per gridline (0-4095 range)
 
     const yTicks = []
-    for (let i = 0; i <= EMG_MAX_UV; i += TICK_INTERVAL) {
-        const yPercent = AXIS_MAX_Y - (i / EMG_MAX_UV) * (AXIS_MAX_Y - AXIS_MIN_Y)
+    for (let i = 0; i <= ADC_MAX_COUNT; i += TICK_INTERVAL) {
+        const yPercent = AXIS_MAX_Y - (i / ADC_MAX_COUNT) * (AXIS_MAX_Y - AXIS_MIN_Y)
         yTicks.push({ value: i, yPercent })
     }
 
@@ -125,7 +120,7 @@ function EMGChart({ values, channelIndex }) {
                         {tick.value}
                     </span>
                 ))}
-                <span className="emg-axis-label">µV</span>
+                <span className="emg-axis-label">counts</span>
             </div>
         </div>
     )
@@ -176,15 +171,13 @@ export default function EMGReader() {
             liveTimeoutRef.current = setTimeout(() => setIsLive(false), 2000)
 
             setSeries((prev) => {
-                // Always maintain exactly 2 channels (EMG 1 and EMG 2)
                 const channelCount = 2;
-                
+
                 return Array.from({ length: channelCount }).map((_, index) => {
                     const prevChannel = prev[index] || [];
-                    
-                    // Use the incoming value if available; otherwise, repeat the last value
-                    const newValue = (values[index] !== undefined && Number.isFinite(values[index])) 
-                    ? values[index] 
+
+                    const newValue = (values[index] !== undefined && Number.isFinite(values[index]))
+                    ? values[index]
                     : (prevChannel[prevChannel.length - 1] ?? 0);
 
                     const updated = [...prevChannel, newValue];
