@@ -1,0 +1,160 @@
+
+.imugraph-section {
+    display: flex;
+}
+
+.IMU {
+    border: 5px solid var(--border);
+    background-color: #000000;
+    color: #f2f2f2;
+    width: 225px;
+    min-height: 262px;
+    padding: 12px 12px 0px 12px;
+    box-sizing: border-box;
+    font-family: monospace;
+}
+
+.imu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.imu-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--fourth);
+}
+
+.imu-status {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 999px;
+}
+
+.imu-status.live {
+    background-color: #14f195;
+    color: #000;
+}
+
+.imu-status.offline {
+    background-color: #444;
+    color: #aaa;
+}
+
+.imu-group {
+    margin-bottom: 6px;
+}
+
+.imu-group h4 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    color: #9dd1ff;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.axis-row {
+    display: grid;
+    grid-template-columns: 14px 1fr 44px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+
+.axis-label {
+    font-size: 11px;
+    color: #cccccc;
+}
+
+.axis-track {
+    position: relative;
+    height: 10px;
+    background-color: #1a1a1a;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.axis-zero-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: #555;
+}
+
+.axis-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 2px;
+}
+
+.axis-fill.accel {
+    background-color: #14f195;
+}
+
+.axis-fill.gyro {
+    background-color: #ff9d3a;
+}
+
+.axis-value {
+    font-size: 11px;
+    color: #f2f2f2;
+    text-align: right;
+}
+
+.orientation-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.orientation-wrap {
+    width: 140px;
+    max-width: 100%;
+    height: 50px;
+}
+
+.orientation-svg {
+    width: 100%;
+    height: 60px;
+    display: block;
+}
+
+.orientation-ring {
+    fill: #000000;
+    stroke: var(--third);
+    stroke-width: 2;
+}
+
+.orientation-tick {
+    stroke: var(--third);
+    stroke-width: 2;
+    opacity: 0.6;
+}
+
+.orientation-line {
+    stroke: #14f195;
+    stroke-width: 4;
+    stroke-linecap: round;
+}
+
+.orientation-line-offline {
+    stroke: #666666;
+}
+
+.orientation-center-dot {
+    fill: #ff4d4d;
+}
+
+.orientation-readout {
+    display: flex;
+    gap: 12px;
+    font-family: monospace;
+    font-size:10px;
+    color: #9dd1ff;
+}
+

@@ -1,0 +1,65 @@
+/* Container styling with a sleek dark glass effect */
+.RecordingLight {
+    position: fixed;
+    top: 72px;
+    left: 16px;
+    z-index: 1000;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    width: fit-content;
+}
+
+/* Position container for the overlapping pulse rings */
+.recordingIndicator {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* The solid inner red core */
+.dotCore {
+    width: 30px;
+    height: 30px;
+    background-color: #ff3b30;
+    border-radius: 50%;
+    z-index: 2;
+}
+
+/* The animated expanding outer pulse ring */
+.dotPulse {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-color: #ff3b30;
+    border-radius: 50%;
+    z-index: 1;
+    animation: pulseRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Modern clean typography styling */
+.recordingText {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+/* Keyframe rules to handle scaling up and fading out opacity */
+@keyframes pulseRing {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+    70%, 100% {
+        transform: scale(2.8);
+        opacity: 0;
+    }
+}

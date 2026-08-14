@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 
 venv/
+
+tests/
+
+# Authentication
+token.json
+__pycache__/
+
+# Calibration
+imu_calibration.json

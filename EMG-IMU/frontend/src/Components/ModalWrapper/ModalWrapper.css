@@ -1,0 +1,49 @@
+.terminal-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.terminal-modal-content {
+    display: flex;
+    flex-direction: column;
+    width: min(900px, 92vw);
+    height: min(600px, 85vh);
+    border: 2px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.terminal-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 1rem;
+    background: linear-gradient(90deg, var(--primary), var(--second));
+    color: var(--fourth);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+}
+
+.terminal-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--fourth);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0.1em 0.5em;
+}
+
+.terminal-modal-close:active {
+    box-shadow: none;
+}
+
+.terminal-modal-body {
+    flex: 1;
+    min-height: 0;
+}

@@ -1,0 +1,144 @@
+.emggraph-section {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.EMGPanel {
+    border: 5px solid var(--border);
+    background-color: #000000;
+    color: #f2f2f2;
+    width: 550px;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.emg-panel-header {
+    display: flex;
+    position: relative;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.emg-channel-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #9dd1ff;
+}
+
+.emg-graph {
+    height: 204px;
+    width: 100%;
+}
+
+.emg-graph svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.emg-line {
+    fill: none;
+    stroke: #14f195;
+    stroke-width: 1.2;
+    vector-effect: non-scaling-stroke;
+}
+
+.emg-chart .grid-line {
+    stroke: #333333;
+    stroke-width: 0.3;
+    opacity: 0.6;
+}
+
+.emg-chart .axis {
+    stroke: #888888;
+    stroke-width: 0.5;
+}
+
+.emg-chart .tick {
+    stroke: #888888;
+    stroke-width: 0.4;
+}
+
+.emg-chart .tick-label {
+    fill: #9dd1ff;
+    font-family: monospace;
+    font-size: 3.2px;
+}
+
+.emg-chart .axis-label {
+    fill: #9dd1ff;
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 4px;
+}
+
+.emg-panel-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--fourth);
+    font-family: monospace;
+}
+
+.imu-status {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-family: monospace;
+}
+
+.imu-status.live {
+    background-color: #14f195;
+    color: #000;
+}
+
+.imu-status.offline {
+    background-color: #444;
+    color: #aaa;
+}
+
+.emg-chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.emg-chart {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.emg-tick-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.emg-tick-label {
+    position: absolute;
+    left: 4px;
+    transform: translateY(-50%);
+    font-family: monospace;
+    font-size: 11px;
+    color: #9dd1ff;
+    white-space: nowrap;
+    text-align: right;
+    width: 25px;
+}
+
+.emg-axis-label {
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    transform-origin: left center;
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 12px;
+    color: #9dd1ff;
+    white-space: nowrap;
+}

@@ -1,27 +1,26 @@
 /*
-main.jsx
-This is the start of the program where the header and footer is found. 
-The content is in the middle where there are multiple routes connecting 
-to all the pages. The index.html opens this file. <StrictMode> is a 
-tool that intentionally runs certain things twice to help catch bugs.
-<HashRouter> enables client side routing so it lets the browser handle 
-navigation.
+	main.jsx
+	This is the start of the program where the header and footer is found. 
+	The content is in the middle where there are multiple routes connecting to all the pages. 
+	The index.html opens this file. <StrictMode> is a tool that intentionally runs certain things twice to help catch bugs.
+	<HashRouter> enables client side routing so it lets the browser handle navigation.
 */
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
-import Home from './Pages/home.jsx'
-import Graphs from './Pages/Graphs/graphs.jsx'
-import Help from './Pages/help.jsx'
-import logo from "./assets/bionix_logo.png"
+
+import { GraphDashboard, Home, Help } from './Pages'
+
+import { Logo } from "./assets/"
+
 import './main.css'
 
 function AppLayout() {
 	return (
 		<div className="app-shell">
 			<header className="app-header">
-				<img className="logo" src={logo}></img>
+				<img className="logo" src={Logo}></img>
 				<nav className="header-nav" aria-label="Main navigation">
 					<Link to="/">Home</Link>
 				</nav>
@@ -30,7 +29,7 @@ function AppLayout() {
 			<main className="app-content">
 				<Routes>
 					<Route path="/" element={<Home />} />
-					<Route path="/graphs" element={<Graphs />} />
+					<Route path="/graphs" element={<GraphDashboard />} />
 					<Route path="/help" element={<Help />} />
 					<Route path="*" element={<Navigate to="/" replace />} />
 				</Routes>

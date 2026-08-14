@@ -1,0 +1,177 @@
+#include <Wire.h>
+#include <Adafruit_LSM6DS.h> // <-- New Library
+#include <Adafruit_ISM330DHCX.h> 
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+#define EMG1_PIN 34 
+#define EMG2_PIN 35 
+#define I2C_SDA 21
+#define I2C_SCL 22 
+
+#define NUM_IMUS 2
+// 1. UPDATED: Correct I2C addresses for ISM330DLC (Pin SD0 to GND = 0x6A, to VCC = 0x6B)
+const uint8_t imuAddr[NUM_IMUS] = {0x6A, 0x6B}; 
+
+#define SAMPLE_RATE_HZ 500
+#define EMG_OVERSAMPLE 8
+#define IMU_REFRESH_EVERY_N 5 
+
+#define SERVICE_UUID "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
+#define TX_CHARACTERISTIC_UUID "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
+BLEServer *pServer = NULL;
+BLECharacteristic *pTxCharacteristic = NULL;
+bool deviceConnected = false;
+
+class MyServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) { deviceConnected = true; };
+    void onDisconnect(BLEServer* pServer) {
+        deviceConnected = false;
+        pServer->getAdvertising()->start();
+    }
+};
+
+hw_timer_t *timer = NULL;
+volatile bool sampleFlag = false;
+void IRAM_ATTR onTimer() { sampleFlag = true; }
+
+// 2. UPDATED: Correct object class for ISM330 hardware footprints
+Adafruit_ISM330DHCX ism[NUM_IMUS]; 
+bool imuConnected[NUM_IMUS] = {false, false};
+
+struct ImuReading {
+  bool valid;
+  float ax, ay, az;
+  float gx, gy, gz;
+};
+ImuReading lastImu[NUM_IMUS];
+
+void setup() {
+  Serial.begin(115200);
+
+  // --- BLE Initialisation ---
+  BLEDevice::init("ESP32_EMG_IMU");
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  pTxCharacteristic = pService->createCharacteristic(TX_CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_NOTIFY);
+  pTxCharacteristic->addDescriptor(new BLE2902());
+  pService->start();
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);
+  pAdvertising->setMaxPreferred(0x12);
+  BLEDevice::startAdvertising();
+  Serial.println("BLE UART ready. Awaiting connection...");
+
+  // --- ADC setup ---
+  analogReadResolution(12);
+  analogSetPinAttenuation(EMG1_PIN, ADC_11db);
+  analogSetPinAttenuation(EMG2_PIN, ADC_11db);
+
+  // --- I2C + IMUs ---
+  Wire.begin(I2C_SDA, I2C_SCL);
+  Wire.setClock(400000);
+
+  for (int i = 0; i < NUM_IMUS; i++) {
+    // 3. UPDATED: Booting via the LSM6DS framework pointing to the correct explicit address
+    if (ism[i].begin_I2C(imuAddr[i])) { 
+      // Set default measurement ranges
+      ism[i].setAccelRange(LSM6DS_ACCEL_RANGE_4_G);
+      ism[i].setGyroRange(LSM6DS_GYRO_RANGE_500_DPS);
+      
+      imuConnected[i] = true;
+      Serial.print("{\"status\":\"IMU "); Serial.print(i); Serial.print(" connected at 0x"); Serial.print(imuAddr[i], HEX); Serial.println("\"}");
+    } else {
+      imuConnected[i] = false;
+      Serial.print("{\"status\":\"IMU "); Serial.print(i); Serial.print(" NOT FOUND at 0x"); Serial.print(imuAddr[i], HEX); Serial.println("\"}");
+    }
+    lastImu[i] = {false, 0, 0, 0, 0, 0, 0};
+  }
+
+  // --- Hardware timer ---
+  timer = timerBegin(1000000);
+  timerAttachInterrupt(timer, &onTimer);
+  uint64_t periodUs = 1000000UL / SAMPLE_RATE_HZ;
+  timerAlarm(timer, periodUs, true, 0);
+}
+
+int readEmgAveraged(int pin) {
+  long sum = 0;
+  for (int i = 0; i < EMG_OVERSAMPLE; i++) { sum += analogRead(pin); }
+  return sum / EMG_OVERSAMPLE;
+}
+
+// 4. UPDATED: Cleaner, non-blocking hardware event reading
+void refreshImu(int index) {
+  if (!imuConnected[index]) return;
+
+  sensors_event_t accel;
+  sensors_event_t gyro;
+  sensors_event_t temp;
+  
+  // Read current sensor values directly out of the driver registers
+  if (ism[index].getEvent(&accel, &gyro, &temp)) {
+    lastImu[index].ax = accel.acceleration.x;
+    lastImu[index].ay = accel.acceleration.y;
+    lastImu[index].az = accel.acceleration.z;
+    
+    lastImu[index].gx = gyro.gyro.x;
+    lastImu[index].gy = gyro.gyro.y;
+    lastImu[index].gz = gyro.gyro.z;
+    
+    lastImu[index].valid = true;
+  } else {
+    lastImu[index].valid = false;
+  }
+}
+
+String bleBuffer = "";
+void printPacket(int emg1, int emg2) {
+  bleBuffer = "";
+  Serial.print("{\"emg1\":"); Serial.print(emg1);
+  bleBuffer += "{\"emg1\":" + String(emg1);
+  Serial.print(",\"emg2\":"); Serial.print(emg2);
+  bleBuffer += ",\"emg2\":" + String(emg2);
+  Serial.print(",\"imus\":[");
+  bleBuffer += ",\"imus\":[";
+  
+  for (int i = 0; i < NUM_IMUS; i++) {
+    if (i > 0) { Serial.print(","); bleBuffer += ","; }
+    if (lastImu[i].valid) {
+      String imuStr = "{\"ax\":" + String(lastImu[i].ax, 2) + ",\"ay\":" + String(lastImu[i].ay, 2) + ",\"az\":" + String(lastImu[i].az, 2) + ",\"gx\":" + String(lastImu[i].gx, 2) + ",\"gy\":" + String(lastImu[i].gy, 2) + ",\"gz\":" + String(lastImu[i].gz, 2) + "}";
+      Serial.print(imuStr);
+      bleBuffer += imuStr;
+    } else {
+      Serial.print("null");
+      bleBuffer += "null";
+    }
+  }
+  Serial.println("]}");
+  bleBuffer += "]}\n";
+
+  if (deviceConnected) {
+    pTxCharacteristic->setValue(bleBuffer.c_str());
+    pTxCharacteristic->notify();
+  }
+}
+
+void loop() {
+  static uint32_t tickCount = 0;
+  if (sampleFlag) {
+    sampleFlag = false;
+    tickCount++;
+    int emg1 = readEmgAveraged(EMG1_PIN);
+    int emg2 = readEmgAveraged(EMG2_PIN);
+    
+    if (tickCount % IMU_REFRESH_EVERY_N == 0) {
+      for (int i = 0; i < NUM_IMUS; i++) {
+        refreshImu(i);
+      }
+    }
+    printPacket(emg1, emg2);
+  }
+}

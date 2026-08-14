@@ -1,0 +1,41 @@
+.homebutton-section button {
+	min-width: 170px;
+	padding: 0.9rem 1.25rem;
+	border: 2px solid var(--primary);
+	border-radius: 0.75rem;
+	background: var(--primary);
+	color: var(--fourth);
+	font-family: 'Space Grotesk', sans-serif;
+	font-size: 1.05rem;
+	font-weight: 700;
+	text-align: center;
+	text-decoration: none;
+	letter-spacing: 0.03em;
+	transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.homebutton-section button:hover,
+.homebutton-section button:focus-visible {
+	transform: translateY(-3px);
+	background: var(--fourth);
+	color: var(--primary);
+	box-shadow: 0 10px 20px rgba(94, 0, 6, 0.2);
+	outline: none;
+}
+
+.homebutton-section button:active {
+	transform: translateY(-1px);
+}
+
+.homebutton-section button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.homebutton-section button:disabled:hover {
+	transform: none;
+	background: var(--primary);
+	color: var(--fourth);
+	box-shadow: none;
+}
