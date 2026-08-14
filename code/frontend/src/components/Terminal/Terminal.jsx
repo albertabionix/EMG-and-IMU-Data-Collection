@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { io } from 'socket.io-client'
+import { createFlaskSocket } from '../../services'
 import './terminal.css'
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://127.0.0.1:5000";
 const MAX_LINES = 500;
 
 function formatTimestamp() {
@@ -29,9 +28,7 @@ function Terminal({ socket: externalSocket, maxLines = MAX_LINES }) {
     }, [paused]);
 
     useEffect(() => {
-        const socket = externalSocket || io(SOCKET_URL, {
-            transports: ["polling", "websocket"],
-        });
+        const socket = externalSocket || createFlaskSocket();
         const ownsSocket = !externalSocket;
 
         const onConnect = () => setConnected(true);

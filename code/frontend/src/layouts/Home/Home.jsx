@@ -7,19 +7,17 @@
     Sends the name, ID, and port to the graphs page.
 */
 
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useState, useRef } from "react";
 
 import './Home.css'
 
 import { HomeInput, HomeButton, Dropdown, ConfirmButton } from '../../components'
-
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://127.0.0.1:5000'
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || SOCKET_URL
+import { login } from '../../services'
 
 const PORT_OPTIONS = [
-    'COM1', 'COM2', 'COM3', 'COM4', 'COM5',
-    'COM6', 'COM7', 'COM8', 'COM9', 'COM10',
+    'Bluetooth', 'COM1', 'COM2', 'COM3', 'COM4', 
+    'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'COM10',
 ];
 
 // Display labels map to BionixDB's canonical Action tokens (see ACTION_NAMES in
@@ -35,7 +33,7 @@ function Home() {
     // States
     const [showInputs, setShowInputs] = useState(false);
     const [name, setName] = useState("seated"); // canonical Action token, see EXPERIMENT_OPTIONS
-    const [port, setPort] = useState('COM4');
+    const [port, setPort] = useState('Bluetooth');
 	const [ID, setID] = useState('');
     const [error, setError] = useState('')
     const [authError, setAuthError] = useState('')
@@ -86,14 +84,10 @@ function Home() {
         authCancelledRef.current = false
         const timeoutId = setTimeout(() => controller.abort(), 90000)
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/login`, {
-                method: 'POST',
-                signal: controller.signal,
-            })
-            const result = await response.json()
-            if (!response.ok || !result.authenticated) {
+            const { response, data: result } = await login({ signal: controller.signal })
+            if (!response.ok || !result?.authenticated) {
                 setAuthStatus('')
-                setError(result.error || 'Authentication failed')
+                setError(result?.error || 'Authentication failed')
                 return
             }
             setAuthStatus(result.access)

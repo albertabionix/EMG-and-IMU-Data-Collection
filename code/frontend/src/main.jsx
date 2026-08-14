@@ -10,9 +10,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
 
-import { GraphDashboard, Home, Help } from './Pages'
+import { Home, Help, Dashboard } from './layouts'
 
-import { Logo } from "./assets/"
+import { Logo } from "./assets"
 
 import './main.css'
 
@@ -29,7 +29,7 @@ function AppLayout() {
 			<main className="app-content">
 				<Routes>
 					<Route path="/" element={<Home />} />
-					<Route path="/graphs" element={<GraphDashboard />} />
+					<Route path="/graphs" element={<Dashboard />} />
 					<Route path="/help" element={<Help />} />
 					<Route path="*" element={<Navigate to="/" replace />} />
 				</Routes>
