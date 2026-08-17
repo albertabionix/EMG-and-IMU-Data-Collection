@@ -13,7 +13,8 @@ import { useEffect, useState, useRef } from 'react'
 import './Dashboard.css'
 
 import { 
-    Camera, EMGGraph, GraphButton, IMUGraph, Timer, ExperimentName, Notification, ExportPrompt, RecordingLight, ModalWrapper 
+    Camera, EMGGraph, GraphButton, IMUGraph, Timer, ExperimentName, Notification, ExportPrompt, RecordingLight, ModalWrapper, 
+    Checkbox, Metronome, CountdownOverlay
 } from '../../Components'
 
 import { 
@@ -107,6 +108,7 @@ function Dashboard() {
     const navigate = useNavigate()
     const location = useLocation()
     const timerFunctions = useRef(null)
+    const countdownIntervalRef = useRef(null)
 
     // Port state
     const [newPort, setNewPort] = useState()
@@ -122,6 +124,8 @@ function Dashboard() {
     const [series, setSeries] = useState([])
     const [latestValues, setLatestValues] = useState([])
     const [isRecording, setIsRecording] = useState(false)
+    const [isStartingRecording, setIsStartingRecording] = useState(false)
+    const [countdownValue, setCountdownValue] = useState(null)
     const [exporting, setExporting] = useState(false)
     const [showExportPrompt, setShowExportPrompt] = useState(false)
     const showExportPromptRef = useRef(false)
@@ -145,6 +149,9 @@ function Dashboard() {
     // Experiment name (canonical BionixDB Action token), display label, port, and ID
     const { name, label, port, ID } = location.state || {}
 
+    // Checkbox state
+    const [isCheckedCountdown, setIsCheckedCountdown] = useState(false);
+    const [isCheckedMetronome, setIsCheckedMetronome] = useState(false);
 
     // Discards the orphaned local recording if the user leaves (navigates away, refreshes,
     // or closes the tab) without resolving the export prompt — otherwise the local CSV file
@@ -173,6 +180,41 @@ function Dashboard() {
             discardIfPromptAbandoned() // covers in-app navigation away (Back, Home link, etc.)
         }
     }, [])
+
+    useEffect(() => {
+        return () => {
+            if (countdownIntervalRef.current) {
+                clearInterval(countdownIntervalRef.current)
+                countdownIntervalRef.current = null
+            }
+        }
+    }, [])
+
+    function runCountdown(seconds = 3) {
+        return new Promise((resolve) => {
+            if (countdownIntervalRef.current) {
+                clearInterval(countdownIntervalRef.current)
+                countdownIntervalRef.current = null
+            }
+
+            let current = seconds
+            setCountdownValue(current)
+
+            countdownIntervalRef.current = setInterval(() => {
+                current -= 1
+
+                if (current > 0) {
+                    setCountdownValue(current)
+                    return
+                }
+
+                clearInterval(countdownIntervalRef.current)
+                countdownIntervalRef.current = null
+                setCountdownValue(null)
+                resolve()
+            }, 1000)
+        })
+    }
 
     // ── socket setup ——
 
@@ -270,8 +312,17 @@ function Dashboard() {
     // —— button handlers ——
 
     async function handleRecord() {
+        if (isRecording || isStartingRecording) return
+
+        setIsStartingRecording(true)
+
         try {
             timerFunctions.current?.start()
+
+            if (isCheckedCountdown) {
+                await runCountdown(3)
+            }
+
             const { response, data: result } = await startRecording({ experiment: name, numberID: ID })
 
             if (!response.ok || result?.error) {
@@ -282,8 +333,11 @@ function Dashboard() {
             setIsRecording(true)
             return result
         } catch (err) {
+            timerFunctions.current?.stop()
             console.error('Recording start failed:', err)
             showNotification('Recording failed', 'info')
+        } finally {
+            setIsStartingRecording(false)
         }
 
     }
@@ -395,6 +449,36 @@ function Dashboard() {
         }
     }
 
+    useEffect(() => {
+        const onKeyDown = (event) => {
+            if (event.code !== 'Space' || event.repeat) return
+
+            const target = event.target
+            if (
+                target instanceof HTMLElement &&
+                (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName))
+            ) {
+                return
+            }
+
+            event.preventDefault()
+
+            if (isStartingRecording) return
+
+            if (isRecording) {
+                handleStop()
+                return
+            }
+
+            handleRecord()
+        }
+
+        window.addEventListener('keydown', onKeyDown)
+        return () => {
+            window.removeEventListener('keydown', onKeyDown)
+        }
+    })
+
     // —— render ——
 
     return (
@@ -432,9 +516,10 @@ function Dashboard() {
                 </section>
                 <section className="buttons">
                     <GraphButton
-                        label={isRecording ? 'Stop' : 'Record'}
+                        label={isRecording ? 'Stop' : isStartingRecording ? 'Starting...' : 'Record'}
                         name={isRecording ? 'stop' : 'record'}
                         onClick={isRecording ? handleStop : handleRecord}
+                        disabled={isStartingRecording}
                     />
                     <GraphButton label="Port"   name="port"   onClick={handlePortChange} />
                     <GraphButton label="Terminal" name="terminal" onClick={handleTerminal} />
@@ -444,7 +529,17 @@ function Dashboard() {
                         onClick={handleCalibrate}
                         disabled={isCalibrating}
                     />
-                    <GraphButton label="Back"   name="back"   onClick={handleHome} />
+                    <GraphButton label="Back" name="back" onClick={handleHome} />
+                    <Checkbox
+                        label="Countdown"
+                        checked={isCheckedCountdown}
+                        onChange={(e) => setIsCheckedCountdown(e.target.checked)}
+                    />
+                    <Checkbox
+                        label="Metronome"
+                        checked={isCheckedMetronome}
+                        onChange={(e) => setIsCheckedMetronome(e.target.checked)}
+                    />
                 </section>
             </section>
             {showExportPrompt && (
@@ -459,6 +554,8 @@ function Dashboard() {
                 onClose={() => setTerminalOpen(false)}
                 socket={socket}
             />
+            <CountdownOverlay value={countdownValue} />
+            <Metronome enabled={isCheckedMetronome} isRecording={isRecording} />
         </section>
     )
 }
