@@ -11,8 +11,12 @@ import './Camera.css'
 const DETECTION_WIDTH = 320
 const DETECTION_HEIGHT = 240
 
-// hip(0) -> knee(1) -> ankle(2)
-const SKELETON_LINKS = [[0, 1], [1, 2]]
+// Marker layout (matches cv_processor.py):
+//   0 = thigh proximal (near hip), 1 = thigh distal (near knee)
+//   2 = shank proximal (near knee), 3 = shank distal (near ankle)
+// Drawn as two independent segments with a gap at the knee, since no
+// marker sits on the joint itself.
+const SKELETON_LINKS = [[0, 1], [2, 3]]
 
 const Camera = ({ cameraImage, cvStatus, markers = [], angles, onStart, onStop }) => {
     const containerRef = useRef(null)

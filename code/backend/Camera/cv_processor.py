@@ -11,6 +11,17 @@ aruco_detector = cv2.aruco.ArucoDetector(
 
 marker_state = {}
 
+# Marker layout (4 markers total, replacing the old hip/knee/ankle-joint scheme):
+#   0 = thigh, proximal (nearer hip)
+#   1 = thigh, distal    (nearer knee)
+#   2 = shank, proximal (nearer knee)
+#   3 = shank, distal    (nearer ankle)
+# Segment vectors are built from each pair, so no marker needs to sit on the
+# joint itself — just anywhere along the rigid segment, as far apart as
+# practical for a more stable orientation estimate.
+THIGH_PROXIMAL, THIGH_DISTAL = 0, 1
+SHANK_PROXIMAL, SHANK_DISTAL = 2, 3
+
 def detect_aruco(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -68,15 +79,19 @@ def angle_between(v1, v2):
 
 
 def compute_joint_angles(detections):
-    if not all(k in detections for k in [0, 1, 2]):
+    required = [THIGH_PROXIMAL, THIGH_DISTAL, SHANK_PROXIMAL, SHANK_DISTAL]
+    if not all(k in detections for k in required):
         return None
 
-    hip = detections[0]["center"]
-    knee = detections[1]["center"]
-    ankle = detections[2]["center"]
+    thigh_proximal = detections[THIGH_PROXIMAL]["center"]
+    thigh_distal = detections[THIGH_DISTAL]["center"]
+    shank_proximal = detections[SHANK_PROXIMAL]["center"]
+    shank_distal = detections[SHANK_DISTAL]["center"]
 
-    thigh_vec = knee - hip
-    shank_vec = ankle - knee
+    # Both vectors point distally (hip->knee direction, knee->ankle direction)
+    # so the knee-angle sign convention matches the old single-marker version.
+    thigh_vec = thigh_distal - thigh_proximal
+    shank_vec = shank_distal - shank_proximal
 
     knee_angle = angle_between(thigh_vec, shank_vec)
 
