@@ -2,7 +2,7 @@ import os
 
 class AppState:
     def __init__(self):
-        self.comport = os.getenv("SERIAL_PORT", "COM4")
+        self.comport = os.getenv("SERIAL_PORT", "COM5")
         self.baud_rate = 115200
         self.ser = None
 
@@ -25,6 +25,7 @@ class AppState:
 
         self.camera_stop_event = None
         self.camera_task_running = False
+        self.recording_camera_started = False
         self.camera_index_in_use = None
 
         # Set on successful /auth/login, reused for later uploads.

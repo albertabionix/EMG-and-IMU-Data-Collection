@@ -31,75 +31,85 @@ const socket = createFlaskSocket()
 
 // This function takes a raw data packet from the serial port and converts it into an array of numbers.
 // The serial port can send data in many different formats, so the function tries each one in order.
+const NUM_IMUS = 2;
+
+/**
+ * Extracts and normalizes the EMG values into a clean numerical array: [emg1, emg2]
+ */
 function parseSensorPacket(packet) {
-    if (!packet || packet.raw == null) return []
+    if (!packet) return [];
 
-    const raw = String(packet.raw).trim()
-    if (!raw) return []
-
-    try {
-        const parsed = JSON.parse(raw)
-
-        if (Array.isArray(parsed)) {
-            return parsed.map(Number).filter((v) => Number.isFinite(v))
+    // 1. Direct handle: check if our new pre-parsed numerical properties exist
+    if (packet.emg1 !== undefined && packet.emg2 !== undefined) {
+        const emg1 = Number(packet.emg1);
+        const emg2 = Number(packet.emg2);
+        
+        if (Number.isFinite(emg1) && Number.isFinite(emg2)) {
+            return [emg1, emg2];
         }
-
-        if (parsed && typeof parsed === 'object') {
-            const preferredKeys = ['emg1', 'emg2']
-            const preferred = preferredKeys
-                .filter((k) => k in parsed)
-                .map((k) => Number(parsed[k]))
-                .filter((v) => Number.isFinite(v))
-
-            if (preferred.length > 0) return preferred
-
-            return Object.values(parsed)
-                .map(Number)
-                .filter((v) => Number.isFinite(v))
-        }
-    } catch {
-        // fall through to delimited parsing
     }
 
-    return raw
-        .split(/[\s,;|]+/)
-        .map(Number)
-        .filter((v) => Number.isFinite(v))
+    // 2. Legacy fallback: support old JSON text strings if you use them for testing
+    if (packet.raw != null) {
+        const raw = String(packet.raw).trim();
+        if (!raw) return [];
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+                const preferredKeys = ['emg1', 'emg2'];
+                const preferred = preferredKeys
+                    .filter((k) => k in parsed)
+                    .map((k) => Number(parsed[k]))
+                    .filter((v) => Number.isFinite(v));
+
+                if (preferred.length > 0) return preferred;
+            }
+        } catch {
+            // Fall through to legacy character split parsing
+        }
+        return raw.split(/[\s,;|]+/).map(Number).filter((v) => Number.isFinite(v));
+    }
+
+    return [];
 }
 
-const NUM_IMUS = 2
-
+/**
+ * Normalizes IMU packets into a fixed-length list of arrays or objects matching NUM_IMUS slots
+ */
 function parseImuPacket(packet) {
-    if (!packet || packet.raw == null) return null
+    if (!packet) return null;
 
-    const raw = String(packet.raw).trim()
-    if (!raw) return null
-
-    try {
-        const parsed = JSON.parse(raw)
-        if (!parsed || typeof parsed !== 'object') return null
-
-        const isValidImu = (obj) => obj && typeof obj === 'object'
-
-        if (Array.isArray(parsed.imus)) {
-            const slots = Array(NUM_IMUS).fill(null)
-            parsed.imus.slice(0, NUM_IMUS).forEach((imu, i) => {
-                slots[i] = isValidImu(imu) ? imu : null
-            })
-            return slots
-        }
-
-        if (isValidImu(parsed.imu)) {
-            const slots = Array(NUM_IMUS).fill(null)
-            slots[0] = parsed.imu
-            return slots
-        }
-    } catch {
-        // not JSON, or no imu/imus key present
+    // 1. Direct handle: check if our new pre-structured array exists
+    if (Array.isArray(packet.imus)) {
+        const slots = Array(NUM_IMUS).fill(null);
+        packet.imus.slice(0, NUM_IMUS).forEach((imu, i) => {
+            // Ensure the nested tracking dictionary maps cleanly
+            slots[i] = (imu && typeof imu === 'object') ? imu : null;
+        });
+        return slots;
     }
 
-    return null
+    // 2. Legacy fallback: support old JSON text strings
+    if (packet.raw != null) {
+        const raw = String(packet.raw).trim();
+        if (!raw) return null;
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.imus)) {
+                const slots = Array(NUM_IMUS).fill(null);
+                parsed.imus.slice(0, NUM_IMUS).forEach((imu, i) => {
+                    slots[i] = (imu && typeof imu === 'object') ? imu : null;
+                });
+                return slots;
+            }
+        } catch {
+            // Not JSON
+        }
+    }
+
+    return null;
 }
+
 
 // ── component ——
 
@@ -152,6 +162,7 @@ function Dashboard() {
     // Checkbox state
     const [isCheckedCountdown, setIsCheckedCountdown] = useState(false);
     const [isCheckedMetronome, setIsCheckedMetronome] = useState(false);
+    const [isCheckedTest, setIsCheckedTest] = useState(false);
 
     // Discards the orphaned local recording if the user leaves (navigates away, refreshes,
     // or closes the tab) without resolving the export prompt — otherwise the local CSV file
@@ -352,8 +363,17 @@ function Dashboard() {
             }
 
             showNotification('Recording stopped', 'info')
-            setShowExportPrompt(true)
             setIsRecording(false)
+
+            if (isCheckedTest) {
+                const { response: localResponse, data: localResult } = await exportRecording({ local: true })
+                if (!localResponse.ok || !localResult?.saved) {
+                    throw new Error(localResult?.error || `Failed to save recording locally: ${localResponse.status}`)
+                }
+                showNotification('Recording saved to local tests folder', 'info')
+            } else {
+                setShowExportPrompt(true)
+            }
         } catch (err) {
             console.error('Recording stop failed:', err)
             showNotification('Recording stop failed', 'info')
@@ -495,13 +515,12 @@ function Dashboard() {
             <section className="graphs">
                 <section className="IMUs">
                     {imuData.map((data, i) => (
-                        <IMUGraph key={`imu-${i}`} label={`IMU ${i + 1}`} data={data} />
+                        <IMUGraph key={`imu-${i}`} label={i === 0 ? 'Thigh' : 'Shank'} data={data} />
                     ))}
                 </section>
                 <EMGGraph
                     series={series}
-                    latestValues={latestValues}
-                    emgMaxUv={EMG_MAX_UV}
+                    isLive={series.some((channel) => Array.isArray(channel) && channel.length > 0)}
                 />
                 <section className='timer-camera-section'>
                     <Timer ref={timerFunctions} />
@@ -539,6 +558,11 @@ function Dashboard() {
                         label="Metronome"
                         checked={isCheckedMetronome}
                         onChange={(e) => setIsCheckedMetronome(e.target.checked)}
+                    />
+                    <Checkbox
+                        label="Test"
+                        checked={isCheckedTest}
+                        onChange={(e) => setIsCheckedTest(e.target.checked)}
                     />
                 </section>
             </section>

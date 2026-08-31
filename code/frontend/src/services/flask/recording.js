@@ -12,8 +12,12 @@ export function stopRecording() {
 	return requestFlask('/record/stop', { method: 'POST' })
 }
 
-export function exportRecording() {
-	return requestFlaskJson('/export', { method: 'POST' })
+export function exportRecording({ local = false } = {}) {
+	return requestFlaskJson('/export', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ local }),
+	})
 }
 
 export function discardRecording({ keepalive = false } = {}) {

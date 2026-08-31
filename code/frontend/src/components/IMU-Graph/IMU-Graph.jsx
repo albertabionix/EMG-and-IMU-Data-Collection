@@ -2,17 +2,20 @@ import React, { useMemo } from 'react';
 import './IMU-Graph.css'
 
 // Fixed scale for the bar gauges. Accel in m/s^2, gyro in rad/s.
-// Tune these to whatever range makes sense for your motion capture.
 const ACCEL_RANGE = 20;   // +/- 20 m/s^2
 const GYRO_RANGE = 10;    // +/- 10 rad/s
 
-// Orientation indicator scale. Pitch is capped visually at +/- 90 deg;
-// beyond that the horizon line would need to flip, which we don't handle here.
+// --- 16-bit Raw Register Scaling Coefficients ---
+// Accel factor: (4G range / 32768 total steps) * 9.80665 m/s^2 per G
+const ACCEL_CONVERSION_FACTOR = (4.0 / 32768.0) * 9.80665; 
+// Gyro factor: (500 DPS range / 32768 total steps) * (Math.PI / 180) to get rad/s
+const GYRO_CONVERSION_FACTOR = (500.0 / 32768.0) * (Math.PI / 180);
+
 const PITCH_MAX_DEG = 90;
-const PITCH_MAX_PX = 70; // vertical travel of the horizon line at +/- PITCH_MAX_DEG
+const PITCH_MAX_PX = 70; 
 
 function clampToPercent(value, range) {
-    if (value == null || Number.isNaN(value)) return 50; // center if no data
+    if (value == null || Number.isNaN(value)) return 50; 
     const clamped = Math.max(-range, Math.min(range, value));
     return ((clamped + range) / (2 * range)) * 100;
 }
@@ -36,11 +39,6 @@ function AxisBar({ axis, value, range, colorClass }) {
     );
 }
 
-// Computes roll/pitch (in degrees) from the gravity vector seen by the
-// accelerometer. This is a tilt estimate, not full orientation — it has no
-// yaw, and gets noisy under linear acceleration (the sensor can't tell
-// gravity apart from real motion). Good enough for a live "which way is up"
-// indicator; not a substitute for a fused (gyro+accel) orientation filter.
 function computeTilt(ax, ay, az) {
     if (ax == null || ay == null || az == null) return null;
     if (ax === 0 && ay === 0 && az === 0) return null;
@@ -92,8 +90,20 @@ function OrientationIndicator({ ax, ay, az }) {
 }
 
 const IMUGraph = ({ label = 'IMU', data }) => {
-    // data shape: { ax, ay, az, gx, gy, gz } or null/undefined if not connected yet
-    const { ax, ay, az, gx, gy, gz } = data || {};
+    // Intercept and cleanly transform variables if data exists
+    const scaledData = useMemo(() => {
+        if (!data) return null;
+        return {
+            ax: data.ax * ACCEL_CONVERSION_FACTOR,
+            ay: data.ay * ACCEL_CONVERSION_FACTOR,
+            az: data.az * ACCEL_CONVERSION_FACTOR,
+            gx: data.gx * GYRO_CONVERSION_FACTOR,
+            gy: data.gy * GYRO_CONVERSION_FACTOR,
+            gz: data.gz * GYRO_CONVERSION_FACTOR
+        };
+    }, [data]);
+
+    const { ax, ay, az, gx, gy, gz } = scaledData || {};
 
     return (
         <section className="imugraph-section">
@@ -125,4 +135,4 @@ const IMUGraph = ({ label = 'IMU', data }) => {
     )
 }
 
-export default IMUGraph
+export default IMUGraph;

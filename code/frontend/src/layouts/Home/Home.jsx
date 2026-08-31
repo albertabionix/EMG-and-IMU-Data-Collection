@@ -33,7 +33,7 @@ function Home() {
     // States
     const [showInputs, setShowInputs] = useState(false);
     const [name, setName] = useState("seated"); // canonical Action token, see EXPERIMENT_OPTIONS
-    const [port, setPort] = useState('Bluetooth');
+    const [port, setPort] = useState('COM5');
 	const [ID, setID] = useState('');
     const [error, setError] = useState('')
     const [authError, setAuthError] = useState('')

@@ -106,5 +106,6 @@ def camera_loop(*args):
         except Exception:
             pass
         state.camera = None
+        state.camera_task_running = False
         print("Camera stopped")
         socketio.emit("cv_status", {"status": "stopped"})

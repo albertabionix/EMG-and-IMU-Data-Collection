@@ -1,10 +1,7 @@
 #include <Wire.h>
-#include <Adafruit_LSM6DS.h> // <-- New Library
+#include <Adafruit_LSM6DS.h>
 #include <Adafruit_ISM330DHCX.h> 
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
+#include <BluetoothSerial.h>
 
 #define EMG1_PIN 34 
 #define EMG2_PIN 35 
@@ -14,166 +11,155 @@
 #define NUM_IMUS 2
 const uint8_t imuAddr[NUM_IMUS] = {0x6A, 0x6B}; 
 
-#define SAMPLE_RATE_HZ 500
-#define EMG_OVERSAMPLE 8
-#define IMU_REFRESH_EVERY_N 5 
+// --- 1000Hz Target Configuration ---
+#define SAMPLE_RATE_HZ 1000
+#define IMU_REFRESH_EVERY_N 10 // Reads IMUs at 100Hz (Every 10ms) to preserve ADC bandwidth
+#define CLASSIC_SEND_EVERY_N 1 // Send every acquired sample: 1000 Bluetooth Classic packets per second
 
-#define SERVICE_UUID "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
-#define TX_CHARACTERISTIC_UUID "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
-BLEServer *pServer = NULL;
-BLECharacteristic *pTxCharacteristic = NULL;
-bool deviceConnected = false;
-
-class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) { deviceConnected = true; };
-    void onDisconnect(BLEServer* pServer) {
-        deviceConnected = false;
-        pServer->getAdvertising()->start();
-    }
+// Compact Binary Structure (Total: 28 bytes)
+struct __attribute__((packed)) SensorPacket {
+  uint16_t emg1;
+  uint16_t emg2;
+  struct __attribute__((packed)) {
+    int16_t ax, ay, az;
+    int16_t gx, gy, gz;
+  } imu[NUM_IMUS];
 };
 
+BluetoothSerial SerialBT;
+
+QueueHandle_t dataQueue;
+const int QUEUE_SIZE = 200; 
+
 hw_timer_t *timer = NULL;
-volatile bool sampleFlag = false;
-void IRAM_ATTR onTimer() { sampleFlag = true; }
+SemaphoreHandle_t timerSemaphore;
+
+void IRAM_ATTR onTimer() {
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  xSemaphoreGiveFromISR(timerSemaphore, &xHigherPriorityTaskWoken);
+  if (xHigherPriorityTaskWoken) {
+    portYIELD_FROM_ISR();
+  }
+}
 
 Adafruit_ISM330DHCX ism[NUM_IMUS]; 
 bool imuConnected[NUM_IMUS] = {false, false};
 
-struct ImuReading {
-  bool valid;
-  float ax, ay, az;
-  float gx, gy, gz;
-};
-ImuReading lastImu[NUM_IMUS];
-
-int readEmgRaw(int pin) {
-  return analogRead(pin);
-}
+void DataAcquisitionTask(void * pvParameters);
+void BleTransmissionTask(void * pvParameters);
 
 void setup() {
-  Serial.begin(115200);
+  // Clean high-speed serial
+  Serial.begin(921600); 
+  delay(500); // Give the serial monitor time to connect
+  Serial.println("Booting ESP32...");
 
-  // --- BLE Initialisation ---
-  BLEDevice::init("ESP32_EMG_IMU");
-  pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new MyServerCallbacks());
-  BLEService *pService = pServer->createService(SERVICE_UUID);
-  pTxCharacteristic = pService->createCharacteristic(TX_CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_NOTIFY);
-  pTxCharacteristic->addDescriptor(new BLE2902());
-  pService->start();
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06);
-  pAdvertising->setMaxPreferred(0x12);
-  BLEDevice::startAdvertising();
-  Serial.println("BLE UART ready. Awaiting connection...");
+  timerSemaphore = xSemaphoreCreateBinary();
+  dataQueue = xQueueCreate(QUEUE_SIZE, sizeof(SensorPacket));
 
-  // --- ADC setup ---
+  // --- Bluetooth Classic SPP setup ---
+  if (!SerialBT.begin("ESP32_EMG_IMU_1KHZ")) {
+    Serial.println("Bluetooth Classic initialization failed.");
+  } else {
+    Serial.println("Bluetooth Classic ready. Pair with ESP32_EMG_IMU_1KHZ.");
+  }
+
+  // --- High-Speed ADC Optimization ---
   analogReadResolution(12);
   analogSetPinAttenuation(EMG1_PIN, ADC_11db);
   analogSetPinAttenuation(EMG2_PIN, ADC_11db);
 
-  // --- I2C + IMUs ---
+  // --- Reliable I2C Setup ---
   Wire.begin(I2C_SDA, I2C_SCL);
-  Wire.setClock(400000);
+  Wire.setClock(400000); // Safe, rock-solid 400kHz Fast Mode
 
   for (int i = 0; i < NUM_IMUS; i++) {
-    // 3. UPDATED: Booting via the LSM6DS framework pointing to the correct explicit address
     if (ism[i].begin_I2C(imuAddr[i])) { 
-      // Set default measurement ranges
       ism[i].setAccelRange(LSM6DS_ACCEL_RANGE_4_G);
       ism[i].setGyroRange(LSM6DS_GYRO_RANGE_500_DPS);
-      
       imuConnected[i] = true;
-      Serial.print("{\"status\":\"IMU "); Serial.print(i); Serial.print(" connected at 0x"); Serial.print(imuAddr[i], HEX); Serial.println("\"}");
+      Serial.print("IMU "); Serial.print(i); Serial.println(" initialized successfully.");
     } else {
-      imuConnected[i] = false;
-      Serial.print("{\"status\":\"IMU "); Serial.print(i); Serial.print(" NOT FOUND at 0x"); Serial.print(imuAddr[i], HEX); Serial.println("\"}");
+      Serial.print("IMU "); Serial.print(i); Serial.println(" NOT found!");
     }
-    lastImu[i] = {false, 0, 0, 0, 0, 0, 0};
   }
 
-  // --- Hardware timer ---
-  timer = timerBegin(1000000);
+  // Core 1 handles strict 1ms hardware polling loop
+  xTaskCreatePinnedToCore(DataAcquisitionTask, "AcqTask", 4096, NULL, 3, NULL, 1); 
+  // Core 0 processes background BLE and Serial output streams
+  xTaskCreatePinnedToCore(BleTransmissionTask, "BleTask", 4096, NULL, 1, NULL, 0); 
+
+  // --- Hardware Timer Configuration (1000Hz) ---
+  timer = timerBegin(1000000); 
   timerAttachInterrupt(timer, &onTimer);
-  uint64_t periodUs = 1000000UL / SAMPLE_RATE_HZ;
+  uint64_t periodUs = 1000000UL / SAMPLE_RATE_HZ; // 1000us = 1ms
   timerAlarm(timer, periodUs, true, 0);
-}
-
-int readEmgAveraged(int pin) {
-  long sum = 0;
-  for (int i = 0; i < EMG_OVERSAMPLE; i++) { sum += analogRead(pin); }
-  return sum / EMG_OVERSAMPLE;
-}
-
-// 4. UPDATED: Cleaner, non-blocking hardware event reading
-void refreshImu(int index) {
-  if (!imuConnected[index]) return;
-
-  sensors_event_t accel;
-  sensors_event_t gyro;
-  sensors_event_t temp;
   
-  // Read current sensor values directly out of the driver registers
-  if (ism[index].getEvent(&accel, &gyro, &temp)) {
-    lastImu[index].ax = accel.acceleration.x;
-    lastImu[index].ay = accel.acceleration.y;
-    lastImu[index].az = accel.acceleration.z;
-    
-    lastImu[index].gx = gyro.gyro.x;
-    lastImu[index].gy = gyro.gyro.y;
-    lastImu[index].gz = gyro.gyro.z;
-    
-    lastImu[index].valid = true;
-  } else {
-    lastImu[index].valid = false;
-  }
+  Serial.println("System fully ready!");
 }
 
-String bleBuffer = "";
-void printPacket(int emg1, int emg2) {
-  bleBuffer = "";
-  Serial.print("{\"emg1\":"); Serial.print(emg1);
-  bleBuffer += "{\"emg1\":" + String(emg1);
-  Serial.print(",\"emg2\":"); Serial.print(emg2);
-  bleBuffer += ",\"emg2\":" + String(emg2);
-  Serial.print(",\"imus\":[");
-  bleBuffer += ",\"imus\":[";
+void DataAcquisitionTask(void * pvParameters) {
+  uint32_t tickCount = 0;
+  SensorPacket currentPacket = {0};
   
-  for (int i = 0; i < NUM_IMUS; i++) {
-    if (i > 0) { Serial.print(","); bleBuffer += ","; }
-    if (lastImu[i].valid) {
-      String imuStr = "{\"ax\":" + String(lastImu[i].ax, 2) + ",\"ay\":" + String(lastImu[i].ay, 2) + ",\"az\":" + String(lastImu[i].az, 2) + ",\"gx\":" + String(lastImu[i].gx, 2) + ",\"gy\":" + String(lastImu[i].gy, 2) + ",\"gz\":" + String(lastImu[i].gz, 2) + "}";
-      Serial.print(imuStr);
-      bleBuffer += imuStr;
-    } else {
-      Serial.print("null");
-      bleBuffer += "null";
+  // Create real local event containers instead of passing NULL pointers
+  sensors_event_t dummyAccel, dummyGyro, dummyTemp;
+
+  while(1) {
+    if (xSemaphoreTake(timerSemaphore, portMAX_DELAY) == pdTRUE) {
+      tickCount++;
+
+      // Read analog EMG signals immediately (Takes ~10 microseconds)
+      currentPacket.emg1 = analogRead(EMG1_PIN);
+      currentPacket.emg2 = analogRead(EMG2_PIN);
+
+      // Decouple IMU reads to every 10th loop tick (100Hz real data)
+      if (tickCount % IMU_REFRESH_EVERY_N == 0) {
+        for (int i = 0; i < NUM_IMUS; i++) {
+          if (imuConnected[i]) {
+            
+            // Pass real tracking references to force the internal I2C buffer to fill
+            ism[i].getEvent(&dummyAccel, &dummyGyro, &dummyTemp); 
+
+            // Extract the freshly cached raw int16_t variables directly 
+            currentPacket.imu[i].ax = ism[i].rawAccX;
+            currentPacket.imu[i].ay = ism[i].rawAccY;
+            currentPacket.imu[i].az = ism[i].rawAccZ;
+            
+            currentPacket.imu[i].gx = ism[i].rawGyroX;
+            currentPacket.imu[i].gy = ism[i].rawGyroY;
+            currentPacket.imu[i].gz = ism[i].rawGyroZ;
+          }
+        }
+      }
+
+      // Offload payload array to data queue (non-blocking)
+      xQueueSend(dataQueue, &currentPacket, 0);
     }
   }
-  Serial.println("]}");
-  bleBuffer += "]}\n";
+}
 
-  if (deviceConnected) {
-    pTxCharacteristic->setValue(bleBuffer.c_str());
-    pTxCharacteristic->notify();
+
+void BleTransmissionTask(void * pvParameters) {
+  SensorPacket txPacket;
+  uint32_t classicTickCount = 0;
+
+  while(1) {
+    if (xQueueReceive(dataQueue, &txPacket, portMAX_DELAY) == pdTRUE) {
+      
+      // Fast raw CSV stream layout for Serial Plotter evaluation
+      Serial.print(txPacket.emg1); Serial.print(",");
+      Serial.println(txPacket.emg2);
+
+      // Ship compact 28-byte binary payload over Bluetooth Classic SPP
+      classicTickCount++;
+      if (SerialBT.hasClient() && classicTickCount % CLASSIC_SEND_EVERY_N == 0) {
+        SerialBT.write((const uint8_t*)&txPacket, sizeof(SensorPacket));
+      }
+    }
   }
 }
 
 void loop() {
-  static uint32_t tickCount = 0;
-  if (sampleFlag) {
-    sampleFlag = false;
-    tickCount++;
-    int emg1 = readEmgRaw(EMG1_PIN);
-    int emg2 = readEmgRaw(EMG2_PIN);
-    
-    if (tickCount % IMU_REFRESH_EVERY_N == 0) {
-      for (int i = 0; i < NUM_IMUS; i++) {
-        refreshImu(i);
-      }
-    }
-    printPacket(emg1, emg2);
-  }
+  vTaskDelete(NULL); 
 }

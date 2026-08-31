@@ -29,17 +29,20 @@ def auth_login():
 
 @app.route('/record/start', methods=['POST'])
 def start_recording_route():
-    data = request.get_json()
+    data = request.get_json() or {}
     files = Camera.recording.start_recording(
         data.get("experiment", "unknown"),
         data.get("numberID", "0"),
     )
-    return jsonify({"files": files})
+
+    # The camera is owned by the backend and runs independently of recording.
+    return jsonify({"files": files, "recording": True, "camera_started": state.camera_task_running})
 
 
 @app.route('/record/stop', methods=['POST'])
 def stop_recording_route():
     Camera.recording.stop_recording()
+
     return jsonify({"recording": False})
 
 
@@ -53,7 +56,8 @@ def discard_recording_route():
 
 @app.route('/export', methods=['POST'])
 def export_route():
-    result, status = Camera.recording.export_recording()
+    data = request.get_json(silent=True) or {}
+    result, status = Camera.recording.export_recording(local=data.get('local', False))
     return jsonify(result), status
 
 # ---- IMU calibration ----
@@ -85,12 +89,16 @@ def calibrate_imu_status():
 
 @app.route('/record/imu/start', methods=['POST'])
 def start_recording_imu():
-    return jsonify({'error': 'IMU recording not implemented yet'}), 501
+    if not state.is_recording:
+        return jsonify({'status': 'not_recording'}), 409
+    return jsonify({'status': 'recording', 'files': getattr(state, 'recording_files', {})})
 
 
 @app.route('/record/imu/stop', methods=['POST'])
 def stop_recording_imu():
-    return jsonify({'error': 'IMU recording not implemented yet'}), 501
+    if not state.is_recording:
+        return jsonify({'status': 'not_recording'}), 409
+    return stop_recording_route()
 # ======== IMU recording (skeleton — sensor pipeline not implemented yet) ============
 
 
@@ -103,12 +111,16 @@ def stop_recording_imu():
 
 @app.route('/record/cvkas/start', methods=['POST'])
 def start_recording_cvkas():
-    return jsonify({'error': 'CVKAS recording not implemented yet'}), 501
+    if not state.is_recording:
+        return jsonify({'status': 'not_recording'}), 409
+    return jsonify({'status': 'recording', 'files': getattr(state, 'recording_files', {})})
 
 
 @app.route('/record/cvkas/stop', methods=['POST'])
 def stop_recording_cvkas():
-    return jsonify({'error': 'CVKAS recording not implemented yet'}), 501
+    if not state.is_recording:
+        return jsonify({'status': 'not_recording'}), 409
+    return stop_recording_route()
 # ============ CVKAS recording (skeleton — not yet persisted to disk) ===========
 
 # ---- Misc / hardware control ----

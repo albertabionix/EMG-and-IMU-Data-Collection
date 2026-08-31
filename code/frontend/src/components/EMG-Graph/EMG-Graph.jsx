@@ -1,14 +1,9 @@
 /*
     EMG-Graph.jsx
-    This displays both EMGs and are parsed and built in real time using sockets.
+    Displays EMG channel data from the dashboard state as the backend emits it.
 */
-import { useEffect, useRef, useState } from 'react'
-
 import './EMG-Graph.css'
 
-import { createFlaskSocket } from '../../services'
-
-const MAX_SAMPLES = 120
 const ADC_MAX_COUNT = 4095 // 12-bit ADC (analogReadResolution(12) in firmware)
 const AXIS_MIN_X = 6
 const AXIS_MAX_X = 205
@@ -20,23 +15,18 @@ const AXIS_VIEWBOX_WIDTH = 224
 const AXIS_VIEWBOX_HEIGHT = 112
 const AXIS_VIEWBOX = `${AXIS_VIEWBOX_X} ${AXIS_VIEWBOX_Y} ${AXIS_VIEWBOX_WIDTH} ${AXIS_VIEWBOX_HEIGHT}`
 
-// single source of truth for SVG-y -> CSS top% conversion
 const toTopPercent = (svgY) =>
     ((svgY - AXIS_VIEWBOX_Y) / AXIS_VIEWBOX_HEIGHT) * 100
 
-// —— socket ——
-
-const socket = createFlaskSocket()
-
-// —— helpers ——
-
 function buildPoints(values) {
-    if (values.length <= 1) {
+    const safeValues = Array.isArray(values) ? values : []
+
+    if (safeValues.length <= 1) {
         return `${AXIS_MIN_X},${(AXIS_MIN_Y + AXIS_MAX_Y) / 2}`
     }
 
-    const scaled = values.map((value) => {
-        const count = Math.max(0, Math.min(value, ADC_MAX_COUNT))
+    const scaled = safeValues.map((value) => {
+        const count = Math.max(0, Math.min(Number(value) || 0, ADC_MAX_COUNT))
         return (count / ADC_MAX_COUNT) * (AXIS_MAX_Y - AXIS_MIN_Y)
     })
 
@@ -49,45 +39,9 @@ function buildPoints(values) {
         .join(' ')
 }
 
-function parseSensorPacket(packet) {
-    if (!packet || packet.raw == null) return []
-
-    const raw = String(packet.raw).trim()
-    if (!raw) return []
-
-    try {
-        const parsed = JSON.parse(raw)
-
-        if (Array.isArray(parsed)) {
-            return parsed.map(Number).filter((value) => Number.isFinite(value))
-        }
-
-        if (parsed && typeof parsed === 'object') {
-            const preferredKeys = ['emg1', 'emg2']
-            const preferredValues = preferredKeys
-                .filter((key) => key in parsed)
-                .map((key) => Number(parsed[key]))
-                .filter((value) => Number.isFinite(value))
-
-            if (preferredValues.length > 0) return preferredValues
-
-            return Object.values(parsed)
-                .map(Number)
-                .filter((value) => Number.isFinite(value))
-        }
-    } catch {
-        // fall through to delimited parsing
-    }
-
-    return raw
-        .split(/[\s,;|]+/)
-        .map(Number)
-        .filter((value) => Number.isFinite(value))
-}
-
 function EMGChart({ values, channelIndex }) {
     const points = buildPoints(values)
-    const TICK_INTERVAL = 1000 // ADC counts per gridline (0-4095 range)
+    const TICK_INTERVAL = 1000
 
     const yTicks = []
     for (let i = 0; i <= ADC_MAX_COUNT; i += TICK_INTERVAL) {
@@ -126,22 +80,23 @@ function EMGChart({ values, channelIndex }) {
     )
 }
 
-// —— component ——
-
-const EMGGraph = ({ series, isLive }) => {
+const EMGGraph = ({ series = [], isLive = false }) => {
     const channelCount = Math.max(series.length, 2)
+    const hasData = series.some((channel) => Array.isArray(channel) && channel.length > 0)
+    const liveStatus = isLive || hasData
+
     return (
         <section className="emggraph-section">
             {Array.from({ length: channelCount }).map((_, index) => (
                 <section className="EMGPanel" key={`emg-${index}`}>
                     <div className="emg-panel-header">
-                        <h3>{`EMG ${index + 1}`}</h3>
-                        <span className={`imu-status ${isLive ? 'live' : 'offline'}`}>
-                            {isLive ? 'LIVE' : 'NO DATA'}
+                        <h3>{index === 0 ? 'Quad' : 'Hamstring'}</h3>
+                        <span className={`imu-status ${liveStatus ? 'live' : 'offline'}`}>
+                            {liveStatus ? 'LIVE' : 'NO DATA'}
                         </span>
                     </div>
                     <div className="emg-graph">
-                        <EMGChart values={series[index] || []} channelIndex={index} />
+                        <EMGChart values={Array.isArray(series[index]) ? series[index] : []} channelIndex={index} />
                     </div>
                 </section>
             ))}
@@ -149,59 +104,4 @@ const EMGGraph = ({ series, isLive }) => {
     )
 }
 
-export default function EMGReader() {
-    const [series, setSeries] = useState([])
-    const [isLive, setIsLive] = useState(false)
-    const liveTimeoutRef = useRef(null)
-
-    useEffect(() => {
-        const onConnect = () => console.log('EMG socket connected')
-        const onConnectError = (error) => {
-            console.error('EMG socket error:', error)
-            setIsLive(false)
-        }
-        const onDisconnect = () => setIsLive(false)
-
-        const onSensorData = (incomingData) => {
-            const values = parseSensorPacket(incomingData)
-            if (values.length === 0) return
-
-            setIsLive(true)
-            clearTimeout(liveTimeoutRef.current)
-            liveTimeoutRef.current = setTimeout(() => setIsLive(false), 2000)
-
-            setSeries((prev) => {
-                const channelCount = 2;
-
-                return Array.from({ length: channelCount }).map((_, index) => {
-                    const prevChannel = prev[index] || [];
-
-                    const newValue = (values[index] !== undefined && Number.isFinite(values[index]))
-                    ? values[index]
-                    : (prevChannel[prevChannel.length - 1] ?? 0);
-
-                    const updated = [...prevChannel, newValue];
-                    if (updated.length > MAX_SAMPLES) updated.shift();
-                    return updated;
-                });
-            });
-        }
-
-        socket.on('connect', onConnect)
-        socket.on('connect_error', onConnectError)
-        socket.on('disconnect', onDisconnect)
-        socket.on('sensor_data', onSensorData)
-        socket.connect()
-
-        return () => {
-            socket.off('connect', onConnect)
-            socket.off('connect_error', onConnectError)
-            socket.off('disconnect', onDisconnect)
-            socket.off('sensor_data', onSensorData)
-            socket.disconnect()
-            clearTimeout(liveTimeoutRef.current)
-        }
-    }, [])
-
-    return <EMGGraph series={series} isLive={isLive} />
-}
+export default EMGGraph

@@ -187,13 +187,22 @@ def discard_recording():
     return True, None
 
 
-def export_recording():
+def export_recording(local=False):
     """Returns (result_dict, http_status)."""
+    if state.last_recording is None:
+        return {'uploaded': False, 'saved': False, 'error': 'No recording available to export'}, 400
+
+    if local:
+        files = {
+            modality: path
+            for modality, path in state.last_recording["files"].items()
+            if path
+        }
+        state.last_recording = None
+        return {'saved': True, 'files': files}, 200
+
     if state.bionix_db is None:
         return {'uploaded': False, 'error': 'Not authenticated — click Authenticate first'}, 401
-
-    if state.last_recording is None:
-        return {'uploaded': False, 'error': 'No recording available to export'}, 400
 
     action = ACTION_BY_NAME.get(state.last_recording["action"])
     if action is None:
