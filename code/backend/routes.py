@@ -140,8 +140,8 @@ def start_camera():
     if state.camera_task_running:
         return jsonify({'status': 'already_running'})
     state.camera_stop_event = threading.Event()
-    socketio.start_background_task(cameraHandler.camera_loop, state.camera_stop_event)
     state.camera_task_running = True
+    socketio.start_background_task(cameraHandler.camera_loop, state.camera_stop_event)
     return jsonify({'status': 'started'})
 
 

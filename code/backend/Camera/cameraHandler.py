@@ -1,5 +1,6 @@
 import threading
 import base64
+import sys
 import time
 
 import cv2
@@ -11,11 +12,11 @@ from .cv_processor import detect_aruco, compute_joint_angles, compute_linear_kin
 
 from . import recording
 
-camera = cv2.VideoCapture(0)
-
-
 def generate_frames():
     while True:
+        camera = getattr(state, "camera", None)
+        if camera is None:
+            break
         success, frame = camera.read()
         if not success:
             break
@@ -28,7 +29,8 @@ def generate_frames():
 def camera_loop(*args):
     stop_event = args[0] if args and isinstance(args[0], threading.Event) else (state.camera_stop_event or threading.Event())
 
-    cap_backend = getattr(cv2, 'CAP_DSHOW', None)
+    # DirectShow is Windows-only. On macOS, let OpenCV select its native backend.
+    cap_backend = getattr(cv2, 'CAP_DSHOW', None) if sys.platform.startswith("win") else None
     cam = None
 
     for idx in range(0, 4):
@@ -53,6 +55,7 @@ def camera_loop(*args):
 
     if cam is None or not cam.isOpened():
         print("Camera failed to open on indexes 0-3")
+        state.camera_task_running = False
         socketio.emit("cv_status", {"status": "failed"})
         return
 
