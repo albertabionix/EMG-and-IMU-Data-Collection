@@ -285,7 +285,10 @@ function Dashboard() {
 
         setNewPort(port)
 
-        const onConnect = () => console.log('Socket connected to backend')
+        const onConnect = () => {
+            console.log('Socket connected to backend')
+            startCamera().catch((err) => console.error('Camera startup request failed:', err))
+        }
         const onConnectError = (err) => console.error('Socket connection failed:', err)
 
         const onSensorData = (incomingData) => {
