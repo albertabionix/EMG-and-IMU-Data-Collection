@@ -15,10 +15,33 @@ import './Home.css'
 import { HomeInput, HomeButton, Dropdown, ConfirmButton } from '../../components'
 import { login } from '../../services'
 
-const PORT_OPTIONS = [
-    'Bluetooth', 'COM1', 'COM2', 'COM3', 'COM4', 
-    'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'COM10',
-];
+const EXERCISE_OPTIONS_BY_EXPERIMENT = {
+    seated: [
+        { label: 'Baseline', value: 'baseline' },
+        { label: '30°', value: '30' },
+        { label: '60°', value: '60' },
+        { label: '90°', value: '90' },
+        { label: 'Heel Dig', value: 'heel_dig' },
+        { label: 'Leg Raise', value: 'leg_raise' },
+    ],
+    walking: [
+        { label: 'Baseline', value: 'baseline' },
+        { label: 'Right Leg', value: 'r_leg' },
+        { label: 'Left Leg', value: 'l_leg' },
+        { label: 'Walking', value: 'walking' },
+        { label: 'Inclined Walking', value: '15_walking' },
+    ],
+    stairs: [
+        { label: 'Baseline', value: 'baseline' },
+        { label: 'Forward/Back Right Leg', value: 'f_b_r_leg' },
+        { label: 'Forward/Back Left Leg', value: 'f_b_l_leg' },
+        { label: 'Forward/Over Right Leg', value: 'f_o_r_leg' },
+        { label: 'Forward/Over Left Leg', value: 'f_o_l_leg' },
+        { label: 'Step Over Right Leg', value: 'step_over_r_leg' },
+        { label: 'Step Over Left Leg', value: 'step_over_l_leg' },
+        { label: 'Stairmaster', value: 'stairmaster' },
+    ],
+}
 
 // Display labels map to BionixDB's canonical Action tokens (see ACTION_NAMES in
 // bionix_db/bionixdb.py) so the value sent to the backend already matches what
@@ -33,6 +56,7 @@ function Home() {
     // States
     const [showInputs, setShowInputs] = useState(false);
     const [name, setName] = useState("seated"); // canonical Action token, see EXPERIMENT_OPTIONS
+    const [exercise, setExercise] = useState('baseline');
     const [port, setPort] = useState('COM5');
 	const [ID, setID] = useState('');
     const [error, setError] = useState('')
@@ -43,6 +67,16 @@ function Home() {
     const authCancelledRef = useRef(false)
 
     const navigate = useNavigate();
+    const exerciseOptions = EXERCISE_OPTIONS_BY_EXPERIMENT[name] || EXERCISE_OPTIONS_BY_EXPERIMENT.seated
+
+    function handleExperimentChange(nextExperiment) {
+        setName(nextExperiment)
+        const nextOptions = EXERCISE_OPTIONS_BY_EXPERIMENT[nextExperiment] || EXERCISE_OPTIONS_BY_EXPERIMENT.seated
+        const nextExercise = nextOptions.some((option) => option.value === exercise)
+            ? exercise
+            : nextOptions[0]?.value || ''
+        setExercise(nextExercise)
+    }
 
     // Opens and closes the start menu
     function handleStart() {
@@ -64,12 +98,18 @@ function Home() {
             setError("Missing the experiment name")
             return
         }
+        if (!exercise) {
+            setError("Missing the exercise type")
+            return
+        }
         if (!ID) {
             setError("Missing the ID name")
             return
         }
         const label = EXPERIMENT_OPTIONS.find((option) => option.value === name)?.label || name
-        navigate('/graphs', { state: { name, label, port, ID } })
+        const exerciseLabel = (EXERCISE_OPTIONS_BY_EXPERIMENT[name] || [])
+            .find((option) => option.value === exercise)?.label || exercise
+        navigate('/graphs', { state: { name, label, exercise, exerciseLabel, port, ID } })
     }
     
     async function authenticate() {
@@ -135,7 +175,7 @@ function Home() {
                             <Dropdown 
                                 label='Experiment'
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                onChange={(e) => handleExperimentChange(e.target.value)}
                                 options={EXPERIMENT_OPTIONS}
                             />	
                             <HomeInput 
@@ -147,10 +187,10 @@ function Home() {
                                 onChange={(e) => setID(e.target.value)}
                             />
                             <Dropdown
-                                label='Port'
-                                value={port}
-                                onChange={(e) => setPort(e.target.value)}
-                                options={PORT_OPTIONS}
+                                label='Exercise'
+                                value={exercise}
+                                onChange={(e) => setExercise(e.target.value)}
+                                options={exerciseOptions}
                             />
                             {error && <p className='error'>{error}</p>}
                             <ConfirmButton

@@ -32,6 +32,7 @@ def start_recording_route():
     data = request.get_json() or {}
     files = Camera.recording.start_recording(
         data.get("experiment", "unknown"),
+        data.get("exercise", "unknown"),
         data.get("numberID", "0"),
     )
 

@@ -21,16 +21,18 @@ def _open_writer(folder, experiment, number_id, timestamp, modality, header):
     return filename, file_handle, writer
 
 
-def start_recording(experiment, number_id):
+def start_recording(experiment, exercise=None, number_id=None):
     folder = "tests"
     os.makedirs(folder, exist_ok=True)
 
-    experiment_clean = experiment.replace(" ", "_")
+    experiment_clean = str(experiment or "unknown").replace(" ", "_")
+    exercise_clean = str(exercise or "unknown").replace(" ", "_")
+    base_name = f"{experiment_clean}_{exercise_clean}" if exercise_clean not in ("", "unknown") else experiment_clean
     timestamp = datetime.now().strftime('%Y-%b-%d_%H-%M-%S')
 
     emg_header = ["timestamp", "emg1", "emg2"]
     emg_filename, state.emg_csv_file, state.emg_csv_writer = _open_writer(
-        folder, experiment_clean, number_id, timestamp, "emg", emg_header
+        folder, base_name, number_id, timestamp, "emg", emg_header
     )
 
     imu_header = ["timestamp"]
@@ -38,7 +40,7 @@ def start_recording(experiment, number_id):
         for axis in ("ax", "ay", "az", "gx", "gy", "gz"):
             imu_header.append(f"imu{i + 1}_{axis}")
     imu_filename, state.imu_csv_file, state.imu_csv_writer = _open_writer(
-        folder, experiment_clean, number_id, timestamp, "imu", imu_header
+        folder, base_name, number_id, timestamp, "imu", imu_header
     )
 
     # NOTE: modality string here must match BionixDB's MODALITY_FOLDERS / upload_session
@@ -48,18 +50,20 @@ def start_recording(experiment, number_id):
         "velocity", "acceleration", "hip_angle", "knee_angle",
     ]
     cvkas_filename, state.cvkas_csv_file, state.cvkas_csv_writer = _open_writer(
-        folder, experiment_clean, number_id, timestamp, "cvkas", cvkas_header
+        folder, base_name, number_id, timestamp, "cvkas", cvkas_header
     )
 
     state.is_recording = True
+    state.exercise = exercise
     state.recording_files = {
         "emg": emg_filename,
         "imu": imu_filename,
         "cvkas": cvkas_filename,
     }
     # Stashed so stop_recording() can build state.last_recording without the
-    # route needing to pass experiment/number_id back in a second time.
+    # route needing to pass experiment/exercise/number_id back in a second time.
     state.recording_action = experiment
+    state.recording_exercise = exercise
     state.recording_pid = number_id
 
     print(f"Recording started: {emg_filename}, {imu_filename}, {cvkas_filename}")
@@ -82,6 +86,7 @@ def stop_recording():
 
     _init_recording(
         getattr(state, "recording_action", None),
+        getattr(state, "recording_exercise", None),
         getattr(state, "recording_pid", None),
         getattr(state, "recording_files", {}),
     )
@@ -117,10 +122,12 @@ def _normalize_pid(pid):
     )
 
 
-def _init_recording(action, pid, files):
+def _init_recording(action, exercise, pid, files):
     """Populates state.last_recording so /export and /record/discard can find the files."""
+    state.exercise = exercise
     state.last_recording = {
         "action": action,
+        "exercise": exercise,
         "pid": pid,
         "files": files,
     }
@@ -209,10 +216,11 @@ def export_recording(local=False):
         return {'uploaded': False, 'error': f"Unknown action '{state.last_recording['action']}'"}, 400
 
     pid = _normalize_pid(state.last_recording["pid"])
+    exercise = state.last_recording.get("exercise")
     files = {modality: path for modality, path in state.last_recording["files"].items() if path}
 
     try:
-        result = state.bionix_db.upload_session(pid=pid, action=action, **files)
+        result = state.bionix_db.upload_session(pid=pid, action=action, exercise=exercise, **files)
     except PermissionError as error:
         return {'uploaded': False, 'error': str(error)}, 403
     except (FileNotFoundError, ValueError) as error:

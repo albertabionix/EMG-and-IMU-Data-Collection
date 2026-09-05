@@ -13,7 +13,7 @@ import { useEffect, useState, useRef } from 'react'
 import './Dashboard.css'
 
 import { 
-    Camera, EMGGraph, GraphButton, IMUGraph, Timer, ExperimentName, Notification, ExportPrompt, RecordingLight, ModalWrapper, 
+    Camera, EMGGraph, GraphButton, IMUGraph, Timer, Notification, ExportPrompt, RecordingLight, ModalWrapper, 
     Checkbox, Metronome, CountdownOverlay
 } from '../../Components'
 
@@ -24,6 +24,40 @@ import {
 
 const MAX_SAMPLES = 120
 const EMG_MAX_UV = 4095
+
+const EXPERIMENT_OPTIONS = [
+    { label: 'Extend & Contract', value: 'seated' },
+    { label: 'Gait Cycle', value: 'walking' },
+    { label: 'Staircase', value: 'stairs' },
+]
+
+const EXERCISE_OPTIONS_BY_EXPERIMENT = {
+    seated: [
+        { label: 'Baseline', value: 'baseline' },
+        { label: '30°', value: '30' },
+        { label: '60°', value: '60' },
+        { label: '90°', value: '90' },
+        { label: 'Heel Dig', value: 'heel_dig' },
+        { label: 'Leg Raise', value: 'leg_raise' },
+    ],
+    walking: [
+        { label: 'Baseline', value: 'baseline' },
+        { label: 'Right Leg', value: 'r_leg' },
+        { label: 'Left Leg', value: 'l_leg' },
+        { label: 'Walking', value: 'walking' },
+        { label: 'Inclined Walking', value: '15_walking' },
+    ],
+    stairs: [
+        { label: 'Baseline', value: 'baseline' },
+        { label: 'Forward/Back Right Leg', value: 'f_b_r_leg' },
+        { label: 'Forward/Back Left Leg', value: 'f_b_l_leg' },
+        { label: 'Forward/Over Right Leg', value: 'f_o_r_leg' },
+        { label: 'Forward/Over Left Leg', value: 'f_o_l_leg' },
+        { label: 'Step Over Right Leg', value: 'step_over_r_leg' },
+        { label: 'Step Over Left Leg', value: 'step_over_l_leg' },
+        { label: 'Stairmaster', value: 'stairmaster' },
+    ],
+}
 
 const socket = createFlaskSocket()
 
@@ -156,8 +190,20 @@ function Dashboard() {
     // Calibration state
     const [isCalibrating, setIsCalibrating] = useState(false)
 
-    // Experiment name (canonical BionixDB Action token), display label, port, and ID
-    const { name, label, port, ID } = location.state || {}
+    // Experiment name (canonical BionixDB Action token), display label, exercise, and ID
+    const { name, label, exercise, exerciseLabel, port, ID } = location.state || {}
+    const [selectedExperiment, setSelectedExperiment] = useState(name || 'seated')
+    const [selectedExercise, setSelectedExercise] = useState(exercise || Object.values(EXERCISE_OPTIONS_BY_EXPERIMENT)[0][0].value)
+    const currentExerciseOptions = EXERCISE_OPTIONS_BY_EXPERIMENT[selectedExperiment] || EXERCISE_OPTIONS_BY_EXPERIMENT.seated
+
+    function handleExperimentChange(nextExperiment) {
+        setSelectedExperiment(nextExperiment)
+        const nextOptions = EXERCISE_OPTIONS_BY_EXPERIMENT[nextExperiment] || EXERCISE_OPTIONS_BY_EXPERIMENT.seated
+        const nextExercise = nextOptions.some((option) => option.value === selectedExercise)
+            ? selectedExercise
+            : nextOptions[0]?.value || ''
+        setSelectedExercise(nextExercise)
+    }
 
     // Checkbox state
     const [isCheckedCountdown, setIsCheckedCountdown] = useState(false);
@@ -334,7 +380,11 @@ function Dashboard() {
                 await runCountdown(3)
             }
 
-            const { response, data: result } = await startRecording({ experiment: name, numberID: ID })
+            const { response, data: result } = await startRecording({
+                experiment: selectedExperiment,
+                exercise: selectedExercise,
+                numberID: ID,
+            })
 
             if (!response.ok || result?.error) {
                 throw new Error(result?.error || `Failed to record: ${response.status}`)
@@ -506,9 +556,26 @@ function Dashboard() {
             {notification && (<Notification message={notification.message}/>)}
             <section className='header'>
                 <section className='info-section'>
-                    <ExperimentName subtitle='Experiment:' title={label || name}/>
-                    <ExperimentName subtitle='Port:' title={newPort}/>
-                    <ExperimentName subtitle='ID:' title={ID}/>
+                    <section className='ExperimentName-section'>
+                        <p className='subtitle'>Experiment:</p>
+                        <select className='dashboard-select' value={selectedExperiment} onChange={(e) => handleExperimentChange(e.target.value)}>
+                            {EXPERIMENT_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </section>
+                    <section className='ExperimentName-section'>
+                        <p className='subtitle'>Exercise:</p>
+                        <select className='dashboard-select' value={selectedExercise} onChange={(e) => setSelectedExercise(e.target.value)}>
+                            {currentExerciseOptions.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </section>
+                    <section className='ExperimentName-section'>
+                        <p className='subtitle'>ID:</p>
+                        <p className='id-title'>{ID}</p>
+                    </section>
                 </section>
                 <RecordingLight isRecording={isRecording}/>
             </section>

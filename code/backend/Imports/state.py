@@ -17,10 +17,14 @@ class AppState:
         self.cvkas_csv_file = None
         self.cvkas_csv_writer = None
 
+        # Shared exercise metadata used throughout the app.
+        self.exercise = None
+
         # {"emg": path|None, "imu": path|None, "cvkas": path|None} for the files
         # written during the current/most recent recording.
         self.recording_files = {}
         self.recording_action = None
+        self.recording_exercise = None
         self.recording_pid = None
 
         self.camera_stop_event = None
