@@ -7,7 +7,7 @@ import numpy as np
 
 from Runs.extensions import socketio
 from Imports.state import state
-from .cv_processor import detect_aruco, compute_joint_angles, compute_linear_kinematics
+from .cv_processor import detect_aruco, compute_joint_angles, compute_linear_kinematics, scale_detections
 
 from . import recording
 
@@ -80,25 +80,48 @@ def camera_loop(*args):
                     socketio.emit('cv_frame', {'image': 'data:image/jpeg;base64,' + b64str})
             except Exception as e:
                 print(f"Frame encode/emit failed: {e}")
-
-            # Detect on the SAME resized frame we send to the frontend so marker
-            # coordinates line up with what's drawn on screen.
-            detections = detect_aruco(small)
+                
+            # Detect at original resolution
+            detections = detect_aruco(frame)
             angles = compute_joint_angles(detections)
-            payload = {"angles": angles, "markers": []}
             now = time.time()
+            markers_csv = []
 
             for marker_id, data in detections.items():
-                pos, vel, acc = compute_linear_kinematics(marker_id, data["center"], now)
-                payload["markers"].append({
+                pos, vel, acc = compute_linear_kinematics(
+                    marker_id, data["center"], now
+                )
+
+                markers_csv.append({
                     "id": marker_id,
                     "position": pos.tolist(),
                     "velocity": None if vel is None else float(np.linalg.norm(vel)),
                     "acceleration": None if acc is None else float(np.linalg.norm(acc)),
                 })
 
-            socketio.emit("cv_data", payload)
-            recording.write_cvkas_row(now, payload["markers"], payload["angles"])
+            # Scale coordinates for the resized UI image
+            height, width = frame.shape[:2]
+            scale_x = RESIZE_DIM[0] / width
+            scale_y = RESIZE_DIM[1] / height
+
+            detections_ui = scale_detections(
+                detections, scale_x, scale_y
+            )
+            angles_ui = compute_joint_angles(detections_ui)
+            markers_ui = []
+
+            for marker_id, data in detections_ui.items():
+                markers_ui.append({
+                    "id": marker_id,
+                    "position": data["center"].tolist(),
+                    "corners": data["corners"].tolist()
+                })
+
+            socketio.emit("cv_data", {
+                "angles": angles_ui,
+                "markers": markers_ui
+            })
+            recording.write_cvkas_row(now, markers_csv, angles)
             socketio.sleep(0.03)
     finally:
         try:
