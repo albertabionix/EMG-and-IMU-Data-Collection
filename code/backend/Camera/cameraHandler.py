@@ -86,7 +86,12 @@ def camera_loop(*args):
             angles = compute_joint_angles(detections)
             now = time.time()
             markers_csv = []
-
+            markers_ui = []
+            
+            # Scale coordinates for the resized UI image
+            height, width = frame.shape[:2]
+            scale_x = RESIZE_DIM[0] / width
+            scale_y = RESIZE_DIM[1] / height
             for marker_id, data in detections.items():
                 pos, vel, acc = compute_linear_kinematics(
                     marker_id, data["center"], now
@@ -103,26 +108,37 @@ def camera_loop(*args):
                     ),
                 })
 
-            # Scale coordinates for the resized UI image
-            height, width = frame.shape[:2]
-            scale_x = RESIZE_DIM[0] / width
-            scale_y = RESIZE_DIM[1] / height
+                # Scale marker geometry for the UI
+                center_ui = data["center"].copy()
+                center_ui[0] *= scale_x
+                center_ui[1] *= scale_y
 
-            detections_ui = scale_detections(
-                detections, scale_x, scale_y
-            )
-            angles_ui = compute_joint_angles(detections_ui)
-            markers_ui = []
+                corners_ui = data["corners"].copy()
+                corners_ui[:, 0] *= scale_x
+                corners_ui[:, 1] *= scale_y
 
-            for marker_id, data in detections_ui.items():
+                velocity_ui = None if vel is None else [
+                    float(vel[0] * scale_x),
+                    float(vel[1] * scale_y)
+                ]
+
+                acceleration_ui = None if acc is None else [
+                    float(acc[0] * scale_x),
+                    float(acc[1] * scale_y)
+                ]
+                # Reuse kinematics; do not calculate a second time
                 markers_ui.append({
                     "id": marker_id,
-                    "position": data["center"].tolist(),
-                    "corners": data["corners"].tolist()
+                    "position": center_ui.tolist(),
+                    "corners": corners_ui.tolist(),
+                    "velocity": None if vel is None else float(np.linalg.norm(vel)),
+                    "acceleration": None if acc is None else float(np.linalg.norm(acc)),
+                    # "speed": None if vel is None else float(np.linalg.norm(vel)),
+                    # "acceleration_magnitude": None if acc is None else float(np.linalg.norm(acc)),
                 })
 
             socketio.emit("cv_data", {
-                "angles": angles_ui,
+                "angles": angles,
                 "markers": markers_ui
             })
             recording.write_cvkas_row(now, markers_csv, angles)
