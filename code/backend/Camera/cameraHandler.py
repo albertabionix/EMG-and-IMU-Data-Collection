@@ -95,8 +95,12 @@ def camera_loop(*args):
                 markers_csv.append({
                     "id": marker_id,
                     "position": pos.tolist(),
-                    "velocity": None if vel is None else float(np.linalg.norm(vel)),
-                    "acceleration": None if acc is None else float(np.linalg.norm(acc)),
+                    "velocity": None if vel is None else vel.tolist(),
+                    "acceleration": None if acc is None else acc.tolist(),
+                    "speed": None if vel is None else float(np.linalg.norm(vel)),
+                    "acceleration_magnitude": (
+                        None if acc is None else float(np.linalg.norm(acc))
+                    ),
                 })
 
             # Scale coordinates for the resized UI image
