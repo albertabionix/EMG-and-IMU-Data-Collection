@@ -7,7 +7,12 @@ import numpy as np
 
 from Runs.extensions import socketio
 from Imports.state import state
-from .cv_processor import detect_aruco, compute_joint_angles, compute_linear_kinematics, scale_detections
+from .cv_processor import (
+    detect_aruco,
+    compute_joint_angles,
+)
+
+from .kalman_tracker import MarkerKalmanTracker
 
 from . import recording
 
@@ -63,7 +68,8 @@ def camera_loop(*args):
     socketio.emit("cv_status", {"status": "started", "index": state.camera_index_in_use})
 
     RESIZE_DIM = (320, 240)
-
+    marker_trackers = {}
+    
     try:
         while not stop_event.is_set():
             ret, frame = cam.read()
@@ -83,65 +89,120 @@ def camera_loop(*args):
                 
             # Detect at original resolution
             detections = detect_aruco(frame)
-            angles = compute_joint_angles(detections)
             now = time.time()
+
             markers_csv = []
             markers_ui = []
-            
-            # Scale coordinates for the resized UI image
+            filtered_detections = {}
+
+            # One independent Kalman tracker per marker.
             height, width = frame.shape[:2]
             scale_x = RESIZE_DIM[0] / width
             scale_y = RESIZE_DIM[1] / height
+
             for marker_id, data in detections.items():
-                pos, vel, acc = compute_linear_kinematics(
-                    marker_id, data["center"], now
+                raw_position = data["center"]
+
+                # Initialize a tracker the first time a marker is detected.
+                if marker_id not in marker_trackers:
+                    marker_trackers[marker_id] = MarkerKalmanTracker(
+                        raw_position, now
+                    )
+
+                    filtered_position = raw_position.astype(float).copy()
+                    vel = None
+                    acc = None
+
+                else:
+                    filtered_position, vel, acc = (
+                        marker_trackers[marker_id].update(
+                            raw_position, now
+                        )
+                    )
+
+                    # Skip invalid timestamp updates.
+                    if filtered_position is None:
+                        continue
+
+                # Keep the marker corners aligned with its filtered center.
+                center_shift = filtered_position - raw_position
+                filtered_corners = data["corners"] + center_shift
+
+                # Store filtered detections for joint-angle calculation.
+                filtered_detections[marker_id] = {
+                    "center": filtered_position,
+                    "corners": filtered_corners,
+                }
+
+                speed = (
+                    None if vel is None
+                    else float(np.linalg.norm(vel))
                 )
 
+                acceleration_magnitude = (
+                    None if acc is None
+                    else float(np.linalg.norm(acc))
+                )
+
+                # CSV: full-resolution coordinates and motion.
                 markers_csv.append({
                     "id": marker_id,
-                    "position": pos.tolist(),
+                    "position": filtered_position.tolist(),
                     "velocity": None if vel is None else vel.tolist(),
                     "acceleration": None if acc is None else acc.tolist(),
-                    "speed": None if vel is None else float(np.linalg.norm(vel)),
-                    "acceleration_magnitude": (
-                        None if acc is None else float(np.linalg.norm(acc))
-                    ),
+                    "speed": speed,
+                    "acceleration_magnitude": acceleration_magnitude,
                 })
 
-                # Scale marker geometry for the UI
-                center_ui = data["center"].copy()
+                # UI: scale coordinates to match the resized camera frame.
+                center_ui = filtered_position.copy()
                 center_ui[0] *= scale_x
                 center_ui[1] *= scale_y
 
-                corners_ui = data["corners"].copy()
+                corners_ui = filtered_corners.copy()
                 corners_ui[:, 0] *= scale_x
                 corners_ui[:, 1] *= scale_y
 
+                # Scale vector components independently for the UI.
                 velocity_ui = None if vel is None else [
                     float(vel[0] * scale_x),
-                    float(vel[1] * scale_y)
+                    float(vel[1] * scale_y),
                 ]
 
                 acceleration_ui = None if acc is None else [
                     float(acc[0] * scale_x),
-                    float(acc[1] * scale_y)
+                    float(acc[1] * scale_y),
                 ]
-                # Reuse kinematics; do not calculate a second time
+
                 markers_ui.append({
                     "id": marker_id,
                     "position": center_ui.tolist(),
                     "corners": corners_ui.tolist(),
-                    "velocity": None if vel is None else float(np.linalg.norm(vel)),
-                    "acceleration": None if acc is None else float(np.linalg.norm(acc)),
-                    # "speed": None if vel is None else float(np.linalg.norm(vel)),
-                    # "acceleration_magnitude": None if acc is None else float(np.linalg.norm(acc)),
+                    "velocity": None if velocity_ui is None else float(np.linalg.norm(velocity_ui)),
+                    "acceleration": None if acceleration_ui is None else float(np.linalg.norm(acceleration_ui)),
+
+                    # # Magnitudes here use resized-image coordinate units.
+                    # "speed": (
+                    #     None if velocity_ui is Noness
+                    #     else float(np.linalg.norm(velocity_ui))
+                    # ),
+                    # "acceleration_magnitude": (
+                    #     None if acceleration_ui is None
+                    #     else float(np.linalg.norm(acceleration_ui))
+                    # ),
                 })
+
+            # Use filtered marker centers for more stable joint angles.
+            angles = compute_joint_angles(filtered_detections)
 
             socketio.emit("cv_data", {
                 "angles": angles,
                 "markers": markers_ui
             })
+
+            # CSV continues to receive full-resolution kinematics.
             recording.write_cvkas_row(now, markers_csv, angles)
+
             socketio.sleep(0.03)
     finally:
         try:
