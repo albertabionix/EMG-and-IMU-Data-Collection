@@ -8,12 +8,12 @@
 */
 
 import { useNavigate } from 'react-router-dom'
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import './Home.css'
 
 import { HomeInput, HomeButton, Dropdown, ConfirmButton } from '../../components'
-import { login } from '../../services'
+import { login, listPorts, changePort } from '../../services'
 
 const EXERCISE_OPTIONS_BY_EXPERIMENT = {
     seated: [
@@ -57,7 +57,9 @@ function Home() {
     const [showInputs, setShowInputs] = useState(false);
     const [name, setName] = useState("seated"); // canonical Action token, see EXPERIMENT_OPTIONS
     const [exercise, setExercise] = useState('baseline');
-    const [port, setPort] = useState('COM5');
+    const [port, setPort] = useState('');
+    const [portOptions, setPortOptions] = useState([]);
+    const [portConnected, setPortConnected] = useState(false);
 	const [ID, setID] = useState('');
     const [error, setError] = useState('')
     const [authError, setAuthError] = useState('')
@@ -67,6 +69,47 @@ function Home() {
     const authCancelledRef = useRef(false)
 
     const navigate = useNavigate();
+
+    // Load the serial ports that exist on this machine. The backend picks a port at
+    // startup (SERIAL_PORT env, last choice, or best guess); show that as selected.
+    async function refreshPorts() {
+        try {
+            const { response, data } = await listPorts()
+            if (!response.ok || !data) return
+            const options = data.ports.map((p) => ({
+                value: p.device,
+                label: p.description && p.description !== 'n/a' ? `${p.device} (${p.description})` : p.device,
+            }))
+            const current = data.current || data.suggested || ''
+            // Keep the active port selectable even if the OS no longer lists it.
+            if (current && !options.some((o) => o.value === current)) {
+                options.unshift({ value: current, label: `${current} (not found)` })
+            }
+            setPortOptions(options)
+            setPort(current)
+            setPortConnected(data.connected)
+        } catch {
+            setPortOptions([])
+        }
+    }
+
+    useEffect(() => {
+        refreshPorts()
+        // Poll so the connection status updates once the sensor connects.
+        const id = setInterval(async () => {
+            try {
+                const { data } = await listPorts()
+                if (data) setPortConnected(data.connected)
+            } catch { /* backend not reachable yet */ }
+        }, 3000)
+        return () => clearInterval(id)
+    }, [])
+
+    async function handlePortChange(nextPort) {
+        setPort(nextPort)
+        setPortConnected(false)
+        if (nextPort) await changePort(nextPort)
+    }
     const exerciseOptions = EXERCISE_OPTIONS_BY_EXPERIMENT[name] || EXERCISE_OPTIONS_BY_EXPERIMENT.seated
 
     function handleExperimentChange(nextExperiment) {
@@ -104,6 +147,10 @@ function Home() {
         }
         if (!ID) {
             setError("Missing the ID name")
+            return
+        }
+        if (!port) {
+            setError("Select the sensor's port (pair the sensor over Bluetooth first)")
             return
         }
         const label = EXPERIMENT_OPTIONS.find((option) => option.value === name)?.label || name
@@ -192,6 +239,16 @@ function Home() {
                                 onChange={(e) => setExercise(e.target.value)}
                                 options={exerciseOptions}
                             />
+                            <Dropdown
+                                label='Port'
+                                value={port}
+                                onChange={(e) => handlePortChange(e.target.value)}
+                                options={[{ value: '', label: portOptions.length ? 'Select a port' : 'No ports found' }, ...portOptions]}
+                            />
+                            <p className='port-status'>
+                                {port ? (portConnected ? 'Sensor connected' : 'Waiting for sensor...') : ''}
+                                {' '}<button type='button' className='port-refresh' onClick={refreshPorts}>Refresh ports</button>
+                            </p>
                             {error && <p className='error'>{error}</p>}
                             <ConfirmButton
                                 label='Submit'

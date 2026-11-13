@@ -1,8 +1,11 @@
 import os
 
+from Imports import ports
+
 class AppState:
     def __init__(self):
-        self.comport = os.getenv("SERIAL_PORT", "COM5")
+        # None until a port is found or chosen in the UI; see Imports/ports.py.
+        self.comport = ports.initial_port()
         self.baud_rate = 115200
         self.ser = None
 

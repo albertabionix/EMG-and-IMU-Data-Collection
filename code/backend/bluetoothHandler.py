@@ -32,27 +32,35 @@ def _process_packet(packet_bytes):
 def read_ble():
     while True:
         ser = None
+        port = state.comport
+        if not port:
+            # Nothing chosen or detected yet; wait for the user to pick a port.
+            socketio.sleep(1)
+            continue
         try:
-            print(f"Connecting to Bluetooth Classic stream on {state.comport}...")
-            ser = serial.Serial(state.comport, timeout=2.0)
-            print(f"Bluetooth Classic connected on {state.comport}.")
+            print(f"Connecting to Bluetooth Classic stream on {port}...")
+            ser = serial.Serial(port, timeout=2.0)
+            print(f"Bluetooth Classic connected on {port}.")
             state.ser = ser
 
-            while ser.is_open:
+            # Leave the loop when the port is changed in the UI so we reconnect
+            # to the new one (checked at least every read timeout).
+            while ser.is_open and state.comport == port:
                 packet = ser.read(PACKET_SIZE)
                 if len(packet) == PACKET_SIZE:
                     _process_packet(packet)
                 else:
                     ser.reset_input_buffer()
         except SerialException as error:
-            print(f"Bluetooth Classic connection failed on {state.comport}: {error}")
+            print(f"Bluetooth Classic connection failed on {port}: {error}")
         except Exception as error:
             print(f"Bluetooth Classic stream error: {error}")
         finally:
             state.ser = None
             if ser is not None:
                 ser.close()
-        socketio.sleep(RECONNECT_DELAY_S)
+        if state.comport == port:  # failed or dropped; switching ports retries immediately
+            socketio.sleep(RECONNECT_DELAY_S)
 
 def main():
     """Run the Classic reader directly for a quick terminal test."""

@@ -3,6 +3,7 @@ import threading
 
 from Runs.extensions import app, socketio
 from Imports.state import state
+from Imports import ports
 import auth
 import Camera.recording
 from Camera import cameraHandler
@@ -126,12 +127,25 @@ def stop_recording_cvkas():
 
 # ---- Misc / hardware control ----
 
+@app.route('/ports', methods=['GET'])
+def list_serial_ports():
+    """Available serial ports, the port in use, and whether it's connected."""
+    available = ports.available_ports()
+    return jsonify({
+        'ports': available,
+        'current': state.comport,
+        'connected': state.ser is not None and state.ser.is_open,
+        'suggested': ports.guess_port(),
+    })
+
+
 @app.route('/change-port', methods=['POST'])
 def change_port():
     data = request.get_json()
-    if not data or 'value' not in data:
+    if not data or not data.get('value'):
         return jsonify({'error': 'Missing value'}), 400
-    state.comport = data.get('value')
+    state.comport = data['value']
+    ports.save_port(state.comport)  # remembered for next launch
     return jsonify({'updated': state.comport})
 
 
