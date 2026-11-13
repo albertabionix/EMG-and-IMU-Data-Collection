@@ -1,10 +1,11 @@
 # EMG-and-IMU-Data-Collection
-An application to collect data EMG and IMU data using JS, HTML, and CSS.
+An application to collect EMG, IMU, and camera-based (CVKAS) data, with a Python (Flask + Socket.IO) backend and a React (Vite) frontend.
 
 ## Downloads
 
-1. Download [node.js](https://nodejs.org/en/download) and follow the steps given.
-2. Check if node.js is downloaded properly
+1. Install [Python 3](https://www.python.org/downloads/).
+2. Download [node.js](https://nodejs.org/en/download) and follow the steps given.
+3. Check if node.js is downloaded properly
    ```bash
    node -v
    ```
@@ -51,18 +52,18 @@ If a login is stuck (e.g. you closed the Google sign-in tab without finishing), 
    .\venv\Scripts\activate
    pip install -r requirements.txt
    ```
-3. Run EMG backend:
+3. Run the backend (with the venv still active):
    ```bash
-   cd .\EMG-IMU\backend\
+   cd .\code\backend\
    python main.py
    ```
-4. Run React frontend:
+4. In a second terminal, from the repo root, run the React frontend:
    ```bash
-   cd .\EMG-IMU\frontend\
+   cd .\code\frontend\
    npm install
-   npm audit fix (if needed)
    npm run dev
    ```
+   If `npm install` reports vulnerabilities, run `npm audit fix`.
 
 ## Getting Started (macOS)
 
@@ -77,17 +78,18 @@ If a login is stuck (e.g. you closed the Google sign-in tab without finishing), 
    source venv/bin/activate
    pip install -r requirements.txt
    ```
-3. Run backend:
+3. Run the backend (with the venv still active):
    ```bash
-   cd ./EMG-IMU/backend/
+   cd ./code/backend/
    python3 main.py
    ```
-4. Run frontend:
+4. In a second terminal, from the repo root, run the frontend:
    ```bash
-   cd ./EMG-IMU/frontend/
+   cd ./code/frontend/
    npm install
-   npm audit fix (if needed)
    npm run dev
    ```
+   If `npm install` reports vulnerabilities, run `npm audit fix`.
+5. **Camera permission (CVKAS):** macOS only lets the backend use the webcam if the app you launched it from (Terminal, iTerm, VS Code, …) has camera access. If the camera panel shows **No preview** and the backend logs `Camera failed to open` or `not authorized to capture video`, enable that app under **System Settings → Privacy & Security → Camera** and restart the backend.
 
-Open the frontend at http://localhost:5173 (Vite default) and check the backend terminal for its bind address/port. Click **Authenticate** before **Start** — the Start button stays disabled until BionixDB grants `CONTENT_MANAGER` access.
+Open the frontend at http://localhost:5173 (Vite default). The backend listens on http://127.0.0.1:5000 by default; override with the `HOST` and `PORT` environment variables. Click **Authenticate** before **Start** — the Start button stays disabled until BionixDB grants `CONTENT_MANAGER` access.
