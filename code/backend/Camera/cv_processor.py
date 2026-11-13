@@ -102,3 +102,24 @@ def compute_joint_angles(detections):
         "hip": float(hip_angle),
         "knee": float(knee_angle)
     }
+    
+def scale_detections(detections, scale_x, scale_y):
+    scaled = {}
+
+    for marker_id, data in detections.items():
+        centers = data["center"].copy()
+        corners = data["corners"].copy()
+
+        centers[0] *= scale_x
+        centers[1] *= scale_y
+
+        corners[:, 0] *= scale_x
+        corners[:, 1] *= scale_y
+
+        scaled[marker_id] = {
+            "center": centers,
+            "corners": corners
+        }
+
+    return scaled
+    
