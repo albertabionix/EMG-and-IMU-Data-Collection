@@ -3,6 +3,7 @@ import csv
 from datetime import datetime
 
 from Imports.state import state
+from Imports.paths import recordings_dir
 
 from googleapiclient.errors import HttpError
 
@@ -22,8 +23,7 @@ def _open_writer(folder, experiment, number_id, timestamp, modality, header):
 
 
 def start_recording(experiment, exercise=None, number_id=None):
-    folder = "tests"
-    os.makedirs(folder, exist_ok=True)
+    folder = recordings_dir()
 
     experiment_clean = str(experiment or "unknown").replace(" ", "_")
     exercise_clean = str(exercise or "unknown").replace(" ", "_")

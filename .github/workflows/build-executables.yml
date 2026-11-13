@@ -1,0 +1,87 @@
+# Builds the desktop app for Windows and macOS.
+#
+# - Push a tag like v1.2.0  -> builds all platforms and attaches the zips to a GitHub Release.
+# - Actions tab -> "Build executables" -> Run workflow -> builds and uploads zips as
+#   workflow artifacts only (no release).
+#
+# See README "Building the Executable" for details.
+name: Build executables
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create the release on tag pushes
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: EMG-IMU-Data-Collection-windows
+          - os: macos-latest          # Apple Silicon (M1 and newer)
+            artifact: EMG-IMU-Data-Collection-macos-arm64
+          - os: macos-15-intel        # Intel Macs; remove this entry if no one needs it
+            artifact: EMG-IMU-Data-Collection-macos-intel
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # bionix-db is installed by pip from the version tag pinned in requirements.txt.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Set version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-dev"; fi
+          echo "APP_VERSION=$v" >> "$GITHUB_ENV"
+
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: ./packaging/build.sh
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./packaging/build.ps1
+
+      - name: Zip (macOS)
+        if: runner.os == 'macOS'
+        working-directory: dist
+        # ditto keeps the .app's symlinks and code signature intact (plain zip breaks them).
+        run: ditto -c -k --keepParent "EMG-IMU Data Collection.app" "../${{ matrix.artifact }}.zip"
+
+      - name: Zip (Windows)
+        if: runner.os == 'Windows'
+        working-directory: dist
+        shell: pwsh
+        run: Compress-Archive -Path "EMG-IMU Data Collection" -DestinationPath "../${{ matrix.artifact }}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.zip
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true

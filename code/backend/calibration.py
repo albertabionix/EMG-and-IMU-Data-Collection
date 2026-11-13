@@ -5,8 +5,9 @@ import os
 import time
 
 from Runs.extensions import socketio
+from Imports.paths import data_dir
 
-CALIBRATION_FILE = os.path.join(os.path.dirname(__file__), "imu_calibration.json")
+CALIBRATION_FILE = os.path.join(data_dir(), "imu_calibration.json")
 CALIBRATION_DURATION_S = 5.0
 NUM_IMUS = 2
 GYRO_FIELDS = ("gx", "gy", "gz")
