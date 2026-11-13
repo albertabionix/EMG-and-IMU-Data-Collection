@@ -1,3 +1,4 @@
+import sys
 import threading
 import base64
 import time
@@ -16,29 +17,29 @@ from .kalman_tracker import MarkerKalmanTracker
 
 from . import recording
 
-camera = cv2.VideoCapture(0)
 
+def _capture_backend():
+    """Pick the OpenCV capture backend for the current OS.
 
-def generate_frames():
-    while True:
-        success, frame = camera.read()
-        if not success:
-            break
-        _, buffer = cv2.imencode('.jpg', frame)
-        frame_bytes = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+    cv2.CAP_DSHOW is defined on every platform, so it can't be feature-detected
+    with getattr; DirectShow only actually works on Windows.
+    """
+    if sys.platform.startswith("win"):
+        return cv2.CAP_DSHOW
+    if sys.platform == "darwin":
+        return cv2.CAP_AVFOUNDATION
+    return cv2.CAP_ANY
 
 
 def camera_loop(*args):
     stop_event = args[0] if args and isinstance(args[0], threading.Event) else (state.camera_stop_event or threading.Event())
 
-    cap_backend = getattr(cv2, 'CAP_DSHOW', None)
+    cap_backend = _capture_backend()
     cam = None
 
     for idx in range(0, 4):
         try:
-            cam_candidate = cv2.VideoCapture(idx, cap_backend) if cap_backend is not None else cv2.VideoCapture(idx)
+            cam_candidate = cv2.VideoCapture(idx, cap_backend)
             if cam_candidate is None or not cam_candidate.isOpened():
                 cam_candidate.release() if cam_candidate else None
                 continue
