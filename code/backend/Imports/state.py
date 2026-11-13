@@ -6,6 +6,9 @@ class AppState:
     def __init__(self):
         # None until a port is found or chosen in the UI; see Imports/ports.py.
         self.comport = ports.initial_port()
+        # True when started with the simulated-sensor flag (see simulatedSensor.py);
+        # adds "Simulated sensor" to the Port dropdown.
+        self.simulation_available = False
         self.baud_rate = 115200
         self.ser = None
 
@@ -37,6 +40,8 @@ class AppState:
 
         # Set on successful /auth/login, reused for later uploads.
         self.bionix_db = None
+        # "CONTENT_MANAGER" or "DEVELOPER" (developers.json allowlist) after login.
+        self.auth_access = None
 
         # {"pid", "action", "files": {"emg": path|None, "imu": path|None, "cvkas": path|None}}
         # for the trial currently awaiting export/discard. Modalities are filled in

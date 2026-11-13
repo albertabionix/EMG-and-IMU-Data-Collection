@@ -7,6 +7,7 @@ from Runs.extensions import socketio
 from Imports.state import state
 import calibration
 from Camera import recording
+import simulatedSensor
 
 PACKET_FORMAT = "<HH 6h 6h"
 PACKET_SIZE = struct.calcsize(PACKET_FORMAT)
@@ -36,6 +37,9 @@ def read_ble():
         if not port:
             # Nothing chosen or detected yet; wait for the user to pick a port.
             socketio.sleep(1)
+            continue
+        if port == simulatedSensor.SIMULATED_PORT:
+            simulatedSensor.run(lambda: state.comport == port, _process_packet, sleep=socketio.sleep)
             continue
         try:
             print(f"Connecting to Bluetooth Classic stream on {port}...")

@@ -60,10 +60,11 @@ function Home() {
     const [port, setPort] = useState('');
     const [portOptions, setPortOptions] = useState([]);
     const [portConnected, setPortConnected] = useState(false);
+    const [portSimulated, setPortSimulated] = useState(false);
 	const [ID, setID] = useState('');
     const [error, setError] = useState('')
     const [authError, setAuthError] = useState('')
-    const [authStatus, setAuthStatus] = useState('') // CONTRIBUTOR, CONTENT_MANAGER, or '' if not authenticated
+    const [authStatus, setAuthStatus] = useState('') // CONTENT_MANAGER, DEVELOPER (developers.json, no uploads), or '' if not authenticated
     const [authenticating, setAuthenticating] = useState(false)
     const authAbortRef = useRef(null)
     const authCancelledRef = useRef(false)
@@ -88,6 +89,7 @@ function Home() {
             setPortOptions(options)
             setPort(current)
             setPortConnected(data.connected)
+            setPortSimulated(Boolean(data.simulated))
         } catch {
             setPortOptions([])
         }
@@ -99,7 +101,10 @@ function Home() {
         const id = setInterval(async () => {
             try {
                 const { data } = await listPorts()
-                if (data) setPortConnected(data.connected)
+                if (data) {
+                    setPortConnected(data.connected)
+                    setPortSimulated(Boolean(data.simulated))
+                }
             } catch { /* backend not reachable yet */ }
         }, 3000)
         return () => clearInterval(id)
@@ -208,7 +213,7 @@ function Home() {
                 </section>
                 <section className="work-block">
                     <section className='button-flex'>
-                        <HomeButton label='Start' onClick={handleStart} disabled={authStatus !== 'CONTENT_MANAGER'}/>
+                        <HomeButton label='Start' onClick={handleStart} disabled={!['CONTENT_MANAGER', 'DEVELOPER'].includes(authStatus)}/>
                         <HomeButton label='Help' onClick={handleHelp}/>
                         <HomeButton
                             label={authenticating ? 'Cancel' : authStatus ? `Authenticated (${authStatus})` : 'Authenticate'}
@@ -246,7 +251,7 @@ function Home() {
                                 options={[{ value: '', label: portOptions.length ? 'Select a port' : 'No ports found' }, ...portOptions]}
                             />
                             <p className='port-status'>
-                                {port ? (portConnected ? 'Sensor connected' : 'Waiting for sensor...') : ''}
+                                {port ? (portSimulated ? 'Simulated sensor - data is fake' : portConnected ? 'Sensor connected' : 'Waiting for sensor...') : ''}
                                 {' '}<button type='button' className='port-refresh' onClick={refreshPorts}>Refresh ports</button>
                             </p>
                             {error && <p className='error'>{error}</p>}

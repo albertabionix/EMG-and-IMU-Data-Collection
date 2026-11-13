@@ -33,6 +33,7 @@ a = Analysis(
     datas=[
         (FRONTEND_DIST, "frontend_dist"),   # served by Flask, see Imports/paths.py
         *collect_data_files("bionix_db"),   # bundled OAuth client (credentials.json)
+        (os.path.join(BACKEND, "developers.json"), "."),  # developer allowlist, see Imports/developers.py
     ],
     hiddenimports=[
         # Flask-SocketIO picks its async driver dynamically, so PyInstaller can't see it.

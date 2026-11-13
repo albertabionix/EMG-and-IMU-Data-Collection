@@ -23,7 +23,16 @@ HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "5000"))
 
 
+def enable_simulated_sensor_if_requested():
+    import simulatedSensor
+    if simulatedSensor.requested():
+        state.simulation_available = True
+        state.comport = simulatedSensor.SIMULATED_PORT
+        print("SIMULATED SENSOR enabled: EMG/IMU data is fake.")
+
+
 def start_background_tasks():
+    enable_simulated_sensor_if_requested()
     socketio.start_background_task(read_ble)
     state.camera_stop_event = threading.Event()
     state.camera_task_running = True

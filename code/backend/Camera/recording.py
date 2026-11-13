@@ -9,6 +9,8 @@ from googleapiclient.errors import HttpError
 
 from bionix_db.bionixdb import ACTION_BY_NAME
 
+import auth
+
 NUM_IMUS = 2  # keep in sync with bluetoothHandler.py / rest of the stack
 
 
@@ -207,6 +209,11 @@ def export_recording(local=False):
         }
         state.last_recording = None
         return {'saved': True, 'files': files}, 200
+
+    blocked = auth.upload_block_reason()
+    if blocked:
+        # uploadDisabled tells the frontend to save locally instead.
+        return {'uploaded': False, 'uploadDisabled': True, 'error': blocked}, 403
 
     if state.bionix_db is None:
         return {'uploaded': False, 'error': 'Not authenticated — click Authenticate first'}, 401
