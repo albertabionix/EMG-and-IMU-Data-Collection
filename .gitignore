@@ -14,6 +14,7 @@ dist-ssr
 
 # Editor directories and files
 .vscode/*
+*.code-workspace
 !.vscode/extensions.json
 .idea
 .DS_Store
@@ -33,6 +34,9 @@ __pycache__/
 
 # Calibration
 imu_calibration.json
+
+# Remembered app settings (serial port)
+settings.json
 
 # PyInstaller
 build/

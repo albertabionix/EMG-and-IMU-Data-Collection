@@ -7,3 +7,8 @@ export function changePort(portName) {
 		body: JSON.stringify({ value: portName }),
 	})
 }
+
+// { ports: [{ device, description }], current, connected, suggested }
+export function listPorts() {
+	return requestFlaskJson('/ports')
+}

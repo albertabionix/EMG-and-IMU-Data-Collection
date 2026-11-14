@@ -3,6 +3,8 @@ import threading
 
 from Runs.extensions import app, socketio
 from Imports.state import state
+from Imports import ports
+import simulatedSensor
 import auth
 import Camera.recording
 from Camera import cameraHandler
@@ -82,11 +84,12 @@ def calibrate_imu_status():
     return jsonify({'calibrating': calibration.is_calibrating()})
 
 
-# ======== IMU recording (skeleton — sensor pipeline not implemented yet) ============
-# Mirror start_recording_route()/stop_recording_route() above once IMU data collection
-# exists: write the local CSV the same way EMG does, then call recording._init_recording
-# and set state.last_recording["files"]["imu"] = filename so /export and /record/discard
-# pick it up automatically — neither of those routes need any changes to support IMU.
+# ======== Per-modality recording routes (IMU, CVKAS) ============
+# /record/start already records EMG, IMU and CVKAS together, each to its own CSV
+# (see Camera/recording.start_recording; IMU rows come from bluetoothHandler, CVKAS
+# rows from cameraHandler while the camera runs). These routes don't start anything
+# separately: "start" reports the shared recording's status and "stop" stops the
+# whole recording. Nothing in the frontend calls them today.
 
 @app.route('/record/imu/start', methods=['POST'])
 def start_recording_imu():
@@ -100,15 +103,7 @@ def stop_recording_imu():
     if not state.is_recording:
         return jsonify({'status': 'not_recording'}), 409
     return stop_recording_route()
-# ======== IMU recording (skeleton — sensor pipeline not implemented yet) ============
 
-
-# ============ CVKAS recording (skeleton — not yet persisted to disk) ===========
-# cv_processor.py already computes angles/kinematics per-frame and emits them live via
-# socketio ("cv_data", see camera_loop()) but never writes them to a CSV. Once that's
-# added: buffer the cv_data payloads during camera_loop() and flush them to a CSV on
-# camera stop, then call recording._init_recording and set
-# state.last_recording["files"]["cvkas"] = filename, same pattern as IMU above.
 
 @app.route('/record/cvkas/start', methods=['POST'])
 def start_recording_cvkas():
@@ -122,16 +117,36 @@ def stop_recording_cvkas():
     if not state.is_recording:
         return jsonify({'status': 'not_recording'}), 409
     return stop_recording_route()
-# ============ CVKAS recording (skeleton — not yet persisted to disk) ===========
 
 # ---- Misc / hardware control ----
+
+@app.route('/ports', methods=['GET'])
+def list_serial_ports():
+    """Available serial ports, the port in use, and whether it's connected."""
+    available = ports.available_ports()
+    simulated = state.comport == simulatedSensor.SIMULATED_PORT
+    if state.simulation_available:
+        available.insert(0, {'device': simulatedSensor.SIMULATED_PORT,
+                             'description': 'Simulated sensor - fake data'})
+    return jsonify({
+        'ports': available,
+        'current': state.comport,
+        'connected': simulated or (state.ser is not None and state.ser.is_open),
+        'simulated': simulated,
+        'suggested': ports.guess_port(),
+    })
+
 
 @app.route('/change-port', methods=['POST'])
 def change_port():
     data = request.get_json()
-    if not data or 'value' not in data:
+    if not data or not data.get('value'):
         return jsonify({'error': 'Missing value'}), 400
-    state.comport = data.get('value')
+    if data['value'] == simulatedSensor.SIMULATED_PORT and not state.simulation_available:
+        return jsonify({'error': 'Start the backend with --simulated-sensor to use it'}), 400
+    state.comport = data['value']
+    if state.comport != simulatedSensor.SIMULATED_PORT:
+        ports.save_port(state.comport)  # remembered for next launch (never the simulator)
     return jsonify({'updated': state.comport})
 
 

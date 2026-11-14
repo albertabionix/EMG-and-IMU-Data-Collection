@@ -435,6 +435,17 @@ function Dashboard() {
         setExporting(true)
         try {
             const { response, data: result } = await exportRecording()
+            if (result?.uploadDisabled) {
+                // Simulated sensor or developer account: never upload; keep the data locally.
+                const { response: localResponse, data: localResult } = await exportRecording({ local: true })
+                if (!localResponse.ok || !localResult?.saved) {
+                    showNotification(localResult?.error || 'Failed to save recording locally', 'info')
+                    return
+                }
+                showNotification(`${result.error} Saved to the local folder instead.`, 'info')
+                setShowExportPrompt(false)
+                return
+            }
             if (!response.ok || !result?.uploaded) {
                 showNotification(result?.error || 'Export failed', 'info')
                 return

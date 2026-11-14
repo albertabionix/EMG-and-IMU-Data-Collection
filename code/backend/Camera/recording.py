@@ -3,10 +3,13 @@ import csv
 from datetime import datetime
 
 from Imports.state import state
+from Imports.paths import recordings_dir
 
 from googleapiclient.errors import HttpError
 
 from bionix_db.bionixdb import ACTION_BY_NAME
+
+import auth
 
 NUM_IMUS = 2  # keep in sync with bluetoothHandler.py / rest of the stack
 
@@ -22,8 +25,7 @@ def _open_writer(folder, experiment, number_id, timestamp, modality, header):
 
 
 def start_recording(experiment, exercise=None, number_id=None):
-    folder = "tests"
-    os.makedirs(folder, exist_ok=True)
+    folder = recordings_dir()
 
     experiment_clean = str(experiment or "unknown").replace(" ", "_")
     exercise_clean = str(exercise or "unknown").replace(" ", "_")
@@ -207,6 +209,11 @@ def export_recording(local=False):
         }
         state.last_recording = None
         return {'saved': True, 'files': files}, 200
+
+    blocked = auth.upload_block_reason()
+    if blocked:
+        # uploadDisabled tells the frontend to save locally instead.
+        return {'uploaded': False, 'uploadDisabled': True, 'error': blocked}, 403
 
     if state.bionix_db is None:
         return {'uploaded': False, 'error': 'Not authenticated — click Authenticate first'}, 401

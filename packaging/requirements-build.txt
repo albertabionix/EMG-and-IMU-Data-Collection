@@ -1,0 +1,5 @@
+# Extra packages needed only to build the desktop executable.
+# Install on top of the main requirements.txt: pip install -r packaging/requirements-build.txt
+pyinstaller==6.22.3
+pywebview==6.2.1
+pillow==12.3.0

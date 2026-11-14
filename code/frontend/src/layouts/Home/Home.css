@@ -65,3 +65,18 @@
 	align-items: center;
 	gap: 20px;
 }
+.port-status {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin: 0;
+}
+
+.port-refresh {
+    background: none;
+    border: none;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+}
