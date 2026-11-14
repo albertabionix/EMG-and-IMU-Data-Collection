@@ -22,23 +22,24 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact: EMG-IMU-Data-Collection-windows
+            platform: windows
           - os: macos-latest          # Apple Silicon (M1 and newer)
-            artifact: EMG-IMU-Data-Collection-macos-arm64
+            platform: macos-arm64
           - os: macos-15-intel        # Intel Macs; remove this entry if no one needs it
-            artifact: EMG-IMU-Data-Collection-macos-intel
+            platform: macos-intel
     runs-on: ${{ matrix.os }}
 
     steps:
       # bionix-db is installed by pip from the version tag pinned in requirements.txt.
       - uses: actions/checkout@v4
 
+      # Versions come from files in the repo, so changing them never needs a workflow edit.
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version-file: .python-version
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: code/frontend/.nvmrc
 
       - name: Set version
         shell: bash
@@ -55,22 +56,12 @@ jobs:
         shell: pwsh
         run: ./packaging/build.ps1
 
-      - name: Zip (macOS)
-        if: runner.os == 'macOS'
-        working-directory: dist
-        # ditto keeps the .app's symlinks and code signature intact (plain zip breaks them).
-        run: ditto -c -k --keepParent "EMG-IMU Data Collection.app" "../${{ matrix.artifact }}.zip"
-
-      - name: Zip (Windows)
-        if: runner.os == 'Windows'
-        working-directory: dist
-        shell: pwsh
-        run: Compress-Archive -Path "EMG-IMU Data Collection" -DestinationPath "../${{ matrix.artifact }}.zip"
-
+      # The build scripts create the zip (named from APP_NAME in the spec).
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}.zip
+          name: build-${{ matrix.platform }}
+          path: dist/*.zip
+          if-no-files-found: error
 
   release:
     if: github.ref_type == 'tag'

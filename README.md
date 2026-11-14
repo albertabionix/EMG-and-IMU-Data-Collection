@@ -17,9 +17,9 @@ Download the zip for your computer from the repo's **[Releases](https://github.c
 
 **Closing the app window quits the app**, including the sensor and camera connections.
 
-**Updating:** download the new zip from Releases and replace the old app. Your recordings and settings in the [data folder](#where-the-app-stores-data) are kept.
+**Updating:** download the new zip from Releases and replace the old app. Your recordings and settings in the [data folder](#app-data-storage) are kept.
 
-## Signing in
+## Signing In
 
 Click **Authenticate**. A browser window opens for you to sign in with your **Alberta Bionix UAlberta Google account**. Every click opens a fresh login (it never reuses an old session), so signing in again always reflects your current Drive access.
 
@@ -45,7 +45,7 @@ The ESP32 streams over **Bluetooth Classic serial** (device name `ESP32_EMG_IMU_
 
 The app remembers the last port you picked, so you normally choose it once.
 
-**If it won't connect:**
+**If it Won't Connect:**
 - **The port appears but never connects:** make sure the ESP32 is powered on and not connected to another computer. On macOS, Bluetooth Classic serial can be unreliable; removing the device in Bluetooth settings and pairing again usually fixes it.
 - **No ports listed at all:** the device isn't paired, or (on macOS) the app was denied Bluetooth access. Check **System Settings → Privacy & Security → Bluetooth**.
 
@@ -58,10 +58,10 @@ The app remembers the last port you picked, so you normally choose it once.
    - **Cancel** discards the local copy without uploading.
 
    If you leave the page, refresh, or close the window without choosing, the local recording is discarded, so unexported files don't pile up.
-4. With the **Test** checkbox ticked, **Stop** saves the recording locally instead of asking, in `recordings/` in the [data folder](#where-the-app-stores-data).
+4. With the **Test** checkbox ticked, **Stop** saves the recording locally instead of asking, in `recordings/` in the [data folder](#app-data-storage).
 5. Uploads are **disabled** when you're signed in as a [developer](#developer-accounts-no-content_manager-access) or the app was started with the [simulated sensor](#testing-without-sensors-simulated-sensor). **Export** then saves the recording locally instead, so nothing is lost and no test data reaches the Drive.
 
-### How files are named
+### File Naming
 
 **On your computer**, while recording or when saved locally:
 ```
@@ -86,7 +86,7 @@ Example: `emg-p020-stairs-stairmaster-03.csv`
 
 Older Drive files recorded before exercises were added have no exercise part: `emg-p002-seated-01.csv`.
 
-### What's in the CSVs
+### CSV Formatting
 
 | File | Columns |
 |---|---|
@@ -101,7 +101,7 @@ Older Drive files recorded before exercises were added have no exercise part: `e
 
 To read recordings back from the Drive in Python, use BionixDB's `get_emg` / `get_imu` / `get_cvkas` or `download_*`; see [bionix-db's README](https://github.com/albertabionix/bionix-db#reading-data).
 
-## Where the app stores data
+## App Data Storage
 
 Everything the app writes goes to **`~/Documents/BionixDataCollection/`** (on Windows, `C:\Users\<you>\Documents\BionixDataCollection\`):
 
@@ -114,7 +114,7 @@ Everything the app writes goes to **`~/Documents/BionixDataCollection/`** (on Wi
 
 ## Troubleshooting
 
-- **The app opens then immediately closes, or nothing happens:** read `app.log` in the [data folder](#where-the-app-stores-data).
+- **The app opens then immediately closes, or nothing happens:** read `app.log` in the [data folder](#app-data-storage).
 - **Camera shows "No preview" on macOS:** enable the app under **System Settings → Privacy & Security → Camera**. If you denied it once, run `tccutil reset Camera ca.albertabionix.emg-imu-data-collection` and relaunch.
 - **"App is damaged and can't be opened" on macOS:** run the `xattr -dr com.apple.quarantine …` command from [Installing](#installing).
 - **Sensor won't connect:** see [Connecting the Sensor](#connecting-the-sensor).
@@ -127,8 +127,8 @@ The app is a Python (Flask + Socket.IO) backend and a React (Vite) frontend. The
 
 ## Requirements
 
-- [Python 3.12](https://www.python.org/downloads/) (what CI builds with)
-- [Node.js](https://nodejs.org/en/download) 20.19 or newer (CI uses 24). Check with `node -v`.
+- [Python](https://www.python.org/downloads/): the version in [`.python-version`](.python-version) (currently 3.12)
+- [Node.js](https://nodejs.org/en/download): the version in [`code/frontend/.nvmrc`](code/frontend/.nvmrc) (currently 24). Vite needs at least 20.19. Check with `node -v`.
 - `git` on your PATH, because `pip` installs BionixDB from GitHub
 
 ## Running from Source
@@ -176,7 +176,7 @@ Running from source, the app writes to `code/backend/` instead of the user data 
 
 To list ports by hand, run `python -m serial.tools.list_ports` (venv active), or `ls /dev/cu.*` on macOS. The sensor firmware is in [`arduino/ESP-32.txt`](arduino/ESP-32.txt).
 
-### BionixDB dependency
+### BionixDB Dependency
 
 Drive uploads go through [BionixDB](https://github.com/albertabionix/bionix-db), a separate Alberta Bionix library. You don't need to clone it: `pip install -r requirements.txt` installs it from GitHub at the version pinned in `requirements.txt`:
 ```
@@ -186,9 +186,9 @@ It needs no credentials file; it ships with a bundled OAuth client. To use a new
 
 ## Testing and Debugging
 
-The app has no automated tests; use the [smoke-test checklist](#build-and-smoke-test-locally). BionixDB's unit tests live in the bionix-db repo and mock Google Drive, so they need no credentials.
+The app has no automated tests; use the [checklist for testing the built app](#test-the-built-app-before-releasing). BionixDB's unit tests live in the bionix-db repo and mock Google Drive, so they need no credentials.
 
-### Testing without sensors (simulated sensor)
+### Testing without Sensors (Simulated Sensor)
 
 To develop or demo without the ESP32, start the backend with the simulated sensor. Any of these work:
 ```bash
@@ -215,7 +215,7 @@ The simulator ([`code/backend/simulatedSensor.py`](code/backend/simulatedSensor.
 
 The camera (CVKAS) isn't simulated: it uses your real webcam.
 
-### Developer accounts (no `CONTENT_MANAGER` access)
+### Developer Accounts (no `CONTENT_MANAGER` access)
 
 Normally the app requires `CONTENT_MANAGER` access, so developers without it can't get past **Authenticate**. To let them use the app, list their Google accounts in `developers.json`:
 ```json
@@ -228,7 +228,7 @@ Emails are matched case-insensitively. Two files are read, and either may be mis
 | File | Scope |
 |---|---|
 | [`code/backend/developers.json`](code/backend/developers.json) | Committed to the repo and bundled into every build, so it applies to everyone. The repo stores these emails, so add people only with their agreement. |
-| `developers.json` in the [data folder](#where-the-app-stores-data) | One computer only; not in the repo. Use this to give yourself developer access in the packaged app without changing the repo. |
+| `developers.json` in the [data folder](#app-data-storage) | One computer only; not in the repo. Use this to give yourself developer access in the packaged app without changing the repo. |
 
 Running from source, the data folder is `code/backend/`, so both rows are the same file.
 
@@ -239,7 +239,7 @@ A developer account:
 
 This is safe to hand out. The file only unlocks the app's UI; Google Drive itself still refuses uploads from accounts without an organizer or file-organizer role, so editing `developers.json` can't grant upload rights.
 
-### Running everything without hardware or Drive access
+### Running Everything without Hardware or Drive Access
 
 For pure UI work, combine both: add yourself to `developers.json`, then run `python main.py --simulated-sensor` and `npm run dev`. Click **Authenticate**, then **Start**. Graphs show simulated data, and recordings are saved locally under `code/backend/tests/`.
 
@@ -255,13 +255,13 @@ The React frontend is built into static files (`code/frontend/dist`), which Flas
 | `packaging/requirements-build.txt` | Build-only packages (PyInstaller, pywebview for the native window, Pillow for the icon) |
 | `.github/workflows/build-executables.yml` | CI that builds Windows, Apple Silicon and Intel Mac apps, and publishes a GitHub Release on version tags |
 
-The packaged app can't write inside its own bundle, so it uses the [data folder](#where-the-app-stores-data), and it has no terminal, so all output goes to `app.log` there.
+The packaged app can't write inside its own bundle, so it uses the [data folder](#app-data-storage), and it has no terminal, so all output goes to `app.log` there.
 
-### Building it yourself
+### Building it Yourself
 
 PyInstaller **can't cross-compile**: a local build only runs on the kind of machine that built it. A Mac builds only the macOS app, for its own chip (an M-series Mac builds the Apple Silicon version, not the Intel one), and a Windows PC builds only the Windows app. To get all of them without needing those machines, use [GitHub Actions](#releasing-an-update).
 
-**Getting a Windows build without a Windows computer:** go to **Actions → Build executables → Run workflow** and pick a branch. When the run finishes (about 10–15 minutes), download `EMG-IMU-Data-Collection-windows` from the **Artifacts** section at the bottom of the run page. GitHub builds it on its own Windows machines. You still need a Windows PC to *test* it: open it with `--simulated-sensor` first, then with the real sensor (pairing, COM port, record, export). The **Run workflow** button only appears once the workflow file is on `main`.
+**Getting a Windows build without a Windows computer:** go to **Actions → Build executables → Run workflow** and pick a branch. When the run finishes (about 10–15 minutes), download `build-windows` from the **Artifacts** section at the bottom of the run page. GitHub builds it on its own Windows machines. You still need a Windows PC to *test* it: open it with `--simulated-sensor` first, then with the real sensor (pairing, COM port, record, export). The **Run workflow** button only appears once the workflow file is on `main`.
 
 Prerequisites: the [source setup](#running-from-source) (venv created, Node and git installed).
 
@@ -278,26 +278,29 @@ open "dist/EMG-IMU Data Collection.app"
 ```
 If PowerShell refuses to run the script, allow local scripts for this session with `Set-ExecutionPolicy -Scope Process Bypass`.
 
-Each script runs `npm ci` and `npm run build` for the frontend, installs the Python and build requirements, and runs PyInstaller. Output goes to `dist/` and scratch files to `build/`. Both are git-ignored and overwritten on each build.
+Each script runs `npm ci` and `npm run build` for the frontend, installs the Python and build requirements, runs PyInstaller, and zips the result. Output goes to `dist/` and scratch files to `build/`. Both are git-ignored and overwritten on each build.
 
 What ends up in `dist/`:
 - **macOS:** `EMG-IMU Data Collection.app` is the app to run and share. The `EMG-IMU Data Collection/` folder next to it is PyInstaller's intermediate output, which the `.app` is assembled from; ignore it.
 - **Windows:** the `EMG-IMU Data Collection\` folder *is* the app. Run the `.exe` inside it and share the whole folder.
+- **Both:** a ready-to-share zip, `EMG-IMU-Data-Collection-<platform>.zip`, the same file a release attaches.
 
 ## Making Changes and Releasing
 
 The executable is a **snapshot** of the code from the moment it was built. Changes merged to `main` **don't** reach users until you release a new version.
 
-### Develop and test from source
+### Develop and Test from Source
 
 Make your changes and test them with `python main.py` plus `npm run dev`. There's no need to rebuild the executable while iterating.
 
-### Check whether your change needs a packaging update
+### Does your change need a packaging update?
 
 Most changes (editing backend Python, React components, CSS, adding routes) need **nothing extra**. Update the packaging only in these cases:
 
 | If your change… | Then also… |
 |---|---|
+| changes the Python or Node version | Edit [`.python-version`](.python-version) or [`code/frontend/.nvmrc`](code/frontend/.nvmrc). CI reads them, so the workflow doesn't change. |
+| renames the app | Change `APP_NAME` in `packaging/EMG-IMU.spec` only. The build scripts, zip names and workflow all follow it. |
 | adds a Python package | Add it to `requirements.txt`. PyInstaller picks it up automatically on the next build. If the packaged app logs `ModuleNotFoundError` for something that works from source (the package imports modules dynamically), add the module name to `hiddenimports` in `packaging/EMG-IMU.spec`. |
 | adds an npm package | Nothing: `npm ci` installs it during the build (make sure `package-lock.json` is committed). |
 | **reads** a non-Python file at runtime (an image, JSON, model, etc. in `code/backend/`) | Add it to `datas` in `packaging/EMG-IMU.spec`, and locate it at runtime with `sys._MEIPASS` when frozen (see `frontend_dist_dir()` in [`code/backend/Imports/paths.py`](code/backend/Imports/paths.py) for the pattern). Plain relative paths break in the packaged app. |
@@ -327,7 +330,7 @@ pip uninstall -y bionixdb && pip install -r requirements.txt   # back to the pin
 ```
 Don't build a release executable while the local copy is installed. Swap back first, or the build will bundle your unreleased code.
 
-### Build and smoke-test locally
+### Test the Built App Before Releasing
 
 Before releasing, run `./packaging/build.sh` (macOS) or `.\packaging\build.ps1` (Windows), launch the app from `dist/`, and check:
 
@@ -342,7 +345,7 @@ Before releasing, run `./packaging/build.sh` (macOS) or `.\packaging\build.ps1` 
 
 If something fails, read `~/Documents/BionixDataCollection/app.log`.
 
-### Releasing an update
+### Releasing an Update
 
 GitHub Actions builds releases for Windows, Apple Silicon Macs, and Intel Macs. It's free because the repo is public.
 
@@ -360,9 +363,24 @@ Merging a PR doesn't build anything; only a version tag or **Run workflow** does
 
 **If a release is broken,** fix it and release the next version (e.g. `v1.3.1`). Don't delete and re-push a tag people may have already downloaded: two different builds would then share one version number.
 
-### Troubleshooting builds
+### Maintaining the Build Workflow
 
-- **The packaged app opens then immediately closes:** read `app.log` in the data folder. A missing module or file there usually means you need a `hiddenimports` or `datas` entry (see [the packaging table](#check-whether-your-change-needs-a-packaging-update)).
+[`build-executables.yml`](.github/workflows/build-executables.yml) shouldn't need editing for normal changes. Versions, dependencies, bundled files and the app name all come from files in the repo (see [the packaging table](#does-your-change-need-a-packaging-update)). Edit it only for these cases:
+
+**Updating the actions it uses.** Each `uses:` line (for example `actions/checkout@v4`) runs a small program published on GitHub, pinned to a major version. GitHub eventually retires old versions: first the Actions log shows a yellow **deprecation warning** naming the action, then builds start failing. When you see one:
+1. Open the action's page on GitHub, for example [actions/checkout](https://github.com/actions/checkout), [actions/setup-python](https://github.com/actions/setup-python), [actions/setup-node](https://github.com/actions/setup-node), [actions/upload-artifact](https://github.com/actions/upload-artifact), [actions/download-artifact](https://github.com/actions/download-artifact), [softprops/action-gh-release](https://github.com/softprops/action-gh-release).
+2. Check its **Releases** for the latest major version, and read the release notes for breaking changes to the inputs this workflow uses (`with:`).
+3. Change the number after `@` (for example `@v4` → `@v5`) in a PR, then check it with **Actions → Build executables → Run workflow** on that branch before merging.
+
+Checking for warnings in a release run every few months is enough to stay ahead of this.
+
+**When a runner is retired.** `windows-latest` and `macos-latest` move to newer machines automatically. `macos-15-intel` is pinned and will be retired as Intel Macs are phased out. When GitHub announces that, either switch it to the replacement Intel label GitHub names, or remove that entry from `matrix` to stop making Intel Mac builds.
+
+**Adding or removing a platform, or changing how releases work.** Edit the `matrix` or the `release` job.
+
+### Troubleshooting Builds
+
+- **The packaged app opens then immediately closes:** read `app.log` in the data folder. A missing module or file there usually means you need a `hiddenimports` or `datas` entry (see [the packaging table](#does-your-change-need-a-packaging-update)).
 - **Build fails with `code/frontend/dist is missing`:** you ran PyInstaller directly. Use the build script, which builds the frontend first.
 - **Build fails installing `bionixdb`:** the tag pinned in `requirements.txt` doesn't exist on GitHub yet. Push the bionix-db tag first.
 - **The Intel Mac job fails in GitHub Actions:** the workflow builds Intel Macs on the `macos-15-intel` runner. If GitHub reports that runner type isn't available, remove that `matrix` entry from `.github/workflows/build-executables.yml`. The Windows and Apple Silicon builds are unaffected.
