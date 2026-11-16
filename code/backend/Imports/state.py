@@ -9,6 +9,11 @@ class AppState:
         # True when started with the simulated-sensor flag (see simulatedSensor.py);
         # adds "Simulated sensor" to the Port dropdown.
         self.simulation_available = False
+        # Shown in the UI when the sensor is connected but its data isn't usable
+        # (e.g. old firmware); see bluetoothHandler.py.
+        self.sensor_warning = None
+        # Per-recording sensor sample counts; see Camera/recording.note_sample.
+        self.sample_stats = None
         self.baud_rate = 115200
         self.ser = None
 

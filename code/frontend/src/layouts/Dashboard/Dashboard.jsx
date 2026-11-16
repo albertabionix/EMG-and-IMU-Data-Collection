@@ -412,7 +412,16 @@ function Dashboard() {
                 throw new Error(`Failed to stop: ${response.status}`)
             }
 
-            showNotification('Recording stopped', 'info')
+            // Sensor samples lost in transit show up as gaps in the ESP32's sample counter.
+            const stopResult = await response.json().catch(() => null)
+            const samples = stopResult?.samples
+            if (samples?.received === 0) {
+                showNotification('Recording stopped, but no sensor data was received', 'info')
+            } else if (samples?.missing_percent >= 1) {
+                showNotification(`Recording stopped. ${samples.missing_percent}% of sensor samples were lost; check the Bluetooth connection`, 'info')
+            } else {
+                showNotification('Recording stopped', 'info')
+            }
             setIsRecording(false)
 
             if (isCheckedTest) {

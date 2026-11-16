@@ -61,6 +61,7 @@ function Home() {
     const [portOptions, setPortOptions] = useState([]);
     const [portConnected, setPortConnected] = useState(false);
     const [portSimulated, setPortSimulated] = useState(false);
+    const [portWarning, setPortWarning] = useState(null);
 	const [ID, setID] = useState('');
     const [error, setError] = useState('')
     const [authError, setAuthError] = useState('')
@@ -90,6 +91,7 @@ function Home() {
             setPort(current)
             setPortConnected(data.connected)
             setPortSimulated(Boolean(data.simulated))
+            setPortWarning(data.warning || null)
         } catch {
             setPortOptions([])
         }
@@ -104,6 +106,7 @@ function Home() {
                 if (data) {
                     setPortConnected(data.connected)
                     setPortSimulated(Boolean(data.simulated))
+                    setPortWarning(data.warning || null)
                 }
             } catch { /* backend not reachable yet */ }
         }, 3000)
@@ -251,7 +254,7 @@ function Home() {
                                 options={[{ value: '', label: portOptions.length ? 'Select a port' : 'No ports found' }, ...portOptions]}
                             />
                             <p className='port-status'>
-                                {port ? (portSimulated ? 'Simulated sensor - data is fake' : portConnected ? 'Sensor connected' : 'Waiting for sensor...') : ''}
+                                {port ? (portSimulated ? 'Simulated sensor - data is fake' : portWarning ? portWarning : portConnected ? 'Sensor connected' : 'Waiting for sensor...') : ''}
                                 {' '}<button type='button' className='port-refresh' onClick={refreshPorts}>Refresh ports</button>
                             </p>
                             {error && <p className='error'>{error}</p>}

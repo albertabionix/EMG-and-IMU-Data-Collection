@@ -74,6 +74,10 @@ def camera_loop(*args):
     try:
         while not stop_event.is_set():
             ret, frame = cam.read()
+            # Stamp the frame as soon as it's captured, before encoding and marker
+            # detection, so CVKAS times line up with EMG/IMU and the Kalman
+            # velocities use the real time between frames.
+            now = time.time()
             if not ret:
                 socketio.sleep(0.03)
                 continue
@@ -90,7 +94,6 @@ def camera_loop(*args):
                 
             # Detect at original resolution
             detections = detect_aruco(frame)
-            now = time.time()
 
             markers_csv = []
             markers_ui = []

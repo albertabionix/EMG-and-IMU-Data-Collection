@@ -48,6 +48,7 @@ The app remembers the last port you picked, so you normally choose it once.
 **If it Won't Connect:**
 - **The port appears but never connects:** make sure the ESP32 is powered on and not connected to another computer. On macOS, Bluetooth Classic serial can be unreliable; removing the device in Bluetooth settings and pairing again usually fixes it.
 - **No ports listed at all:** the device isn't paired, or (on macOS) the app was denied Bluetooth access. Check **System Settings → Privacy & Security → Bluetooth**.
+- **"Sensor connected, but its data isn't recognised":** the ESP32 is running firmware older than this app. Flash [`arduino/ESP-32.txt`](arduino/ESP-32.txt) to it (see [Sensor Firmware](#sensor-firmware)). No data is recorded until you do.
 
 ## Recording and Exporting
 
@@ -58,6 +59,8 @@ The app remembers the last port you picked, so you normally choose it once.
    - **Cancel** discards the local copy without uploading.
 
    If you leave the page, refresh, or close the window without choosing, the local recording is discarded, so unexported files don't pile up.
+
+   If 1% or more of the sensor's samples were lost over Bluetooth during the recording, the **Stop** notification says so. Check the sensor is close to the computer and nothing else is connected to it, then record again if needed.
 4. With the **Test** checkbox ticked, **Stop** saves the recording locally instead of asking, in `recordings/` in the [data folder](#app-data-storage).
 5. Uploads are **disabled** when you're signed in as a [developer](#developer-accounts-no-content_manager-access) or the app was started with the [simulated sensor](#testing-without-sensors-simulated-sensor). **Export** then saves the recording locally instead, so nothing is lost and no test data reaches the Drive.
 
@@ -90,14 +93,35 @@ Older Drive files recorded before exercises were added have no exercise part: `e
 
 | File | Columns |
 |---|---|
-| EMG | `timestamp, emg1, emg2` |
-| IMU | `timestamp, imu1_ax, imu1_ay, imu1_az, imu1_gx, imu1_gy, imu1_gz, imu2_ax, …, imu2_gz` |
-| CVKAS | `timestamp, marker_id, pos_x, pos_y, velocity, acceleration, hip_angle, knee_angle`, one row per detected marker per camera frame. A frame with no detected markers is a row with only `timestamp` filled in. |
+| EMG | `timestamp, seq, emg1, emg2`, one row per sensor sample (1 kHz) |
+| IMU | `timestamp, seq, imu1_ax, imu1_ay, imu1_az, imu1_gx, imu1_gy, imu1_gz, imu2_ax, …, imu2_gz`, one row per IMU reading (100 Hz) |
+| CVKAS | `timestamp, pos_x_0, pos_y_0, velocity_0, acceleration_0, pos_x_1, …, acceleration_3, hip_angle, knee_angle`, one row per camera frame (see below) |
 
-- `timestamp` is Unix epoch seconds from the computer's clock. It's shared by all modalities, so they can be aligned.
+**Two kinds of time:**
+- `timestamp` is Unix epoch seconds from the computer's clock, taken when the data **arrived**. It's shared by all three modalities, so use it to line EMG/IMU up with CVKAS. Bluetooth delivers sensor data in bursts, so for EMG and IMU it's only accurate to a few tens of milliseconds. For CVKAS it's taken right when each camera frame is captured.
+- `seq` (EMG and IMU only) is the ESP32's own sample number. It goes up by exactly 1 every millisecond on the sensor's clock, so it gives each sample's **exact** time: seconds since the start of a recording = `(seq - first seq) / 1000`. Use `seq`, not `timestamp`, for anything that needs even spacing, such as filtering or frequency analysis.
+- **Lost samples** show up as gaps in `seq` (the next row's `seq` is more than 1 higher). Nothing is invented to fill them; decide in your analysis whether to interpolate or split at gaps.
+- `seq` restarts from 1 if the ESP32 reboots, so a drop in `seq` within a file means the sensor restarted mid-recording.
+- An IMU row's `seq` is always a multiple of 10, and matches the EMG row from the same moment, so EMG and IMU can be joined exactly on `seq`.
+
+**Values:**
 - EMG is the raw 12-bit ADC value (0–4095).
 - IMU values are the raw ISM330DHCX counts the firmware sends, with no calibration offsets applied: accelerometer ±4 g range (8197 counts per g), gyro ±500 dps range (57.1 counts per °/s). Recordings from before the binary-packet firmware (commit `413ce33`) stored accelerometer values in m/s² instead.
-- The IMUs update at 100 Hz while EMG runs at 1 kHz, so IMU values repeat over about 10 consecutive rows.
+- If an IMU wasn't read on a sample (for example it's disconnected), its columns are left blank in that row.
+- **CVKAS** has one group of columns per ArUco marker, suffixed with the marker's id:
+
+  | Marker | Placement |
+  |---|---|
+  | `0` | Thigh, proximal (nearer the hip) |
+  | `1` | Thigh, distal (nearer the knee) |
+  | `2` | Shank, proximal (nearer the knee) |
+  | `3` | Shank, distal (nearer the ankle) |
+
+  `pos_x_<id>`, `pos_y_<id>` are the Kalman-filtered marker centre in camera pixels. `velocity_<id>` and `acceleration_<id>` are the magnitudes of its motion (pixels/s and pixels/s²), blank on the first frame a marker is seen. A marker not detected in a frame has blank columns in that row, and `hip_angle`/`knee_angle` (degrees) are blank unless the markers they need were found. Other marker ids the camera sees are ignored.
+
+**Older recordings:**
+- Before `seq` was added, EMG and IMU files have no `seq` column. Their rows were written once per packet with the same arrival `timestamp`, so IMU values repeat over about 10 consecutive rows, and lost samples can't be detected.
+- Before the one-row-per-frame format, CVKAS files have `marker_id, pos_x, pos_y, velocity, acceleration` columns with one row per detected marker, so `hip_angle`/`knee_angle` repeat for every marker in a frame. In files recorded after the Kalman filter was added but before this format, `velocity` and `acceleration` hold `[x, y]` vectors as text rather than numbers.
 
 To read recordings back from the Drive in Python, use BionixDB's `get_emg` / `get_imu` / `get_cvkas` or `download_*`; see [bionix-db's README](https://github.com/albertabionix/bionix-db#reading-data).
 
@@ -207,9 +231,10 @@ The backend prints `SIMULATED SENSOR enabled: EMG/IMU data is fake.` In the app:
 - **Simulated sensor - fake data** is selected in the Port dropdown, and the status reads **Simulated sensor - data is fake**.
 - You can switch to a real port and back while the app runs. The simulator entry is never saved as the remembered port, so a normal launch always uses the real sensor.
 
-The simulator ([`code/backend/simulatedSensor.py`](code/backend/simulatedSensor.py)) sends packets in the firmware's binary format at the firmware's rate (1000 per second). They go through the same handler as real packets, so live graphs, calibration, recording and local saving behave as they do with hardware:
+The simulator ([`code/backend/simulatedSensor.py`](code/backend/simulatedSensor.py)) sends packets in the firmware's binary format at the firmware's rate (1000 per second), as a byte stream through the same parser and handler as a real serial port. So live graphs, calibration, recording and local saving behave as they do with hardware:
 - **EMG:** rests around 1500 with a 1-second muscle-activation burst every 4 seconds. Channel 2 is weaker and offset in time.
-- **IMU:** raw counts with gravity on one axis, a slow sway, and noise, refreshed every 10th packet like the real IMUs.
+- **IMU:** raw counts with gravity on one axis, a slow sway, and noise, refreshed every 10th sample like the real IMUs.
+- **Lost samples:** 0.2% of samples are dropped at random, like Bluetooth losses, so they appear as gaps in `seq`. Change the rate with `SIMULATED_DROP_RATE`, e.g. `SIMULATED_DROP_RATE=0 python main.py --simulated-sensor` for none.
 
 **Uploading to Google Drive is disabled for the whole session** whenever the backend was started with this flag, even after switching to a real port, so fake data can never reach the dataset. **Export** saves the recording locally instead.
 
@@ -242,6 +267,25 @@ This is safe to hand out. The file only unlocks the app's UI; Google Drive itsel
 ### Running Everything without Hardware or Drive Access
 
 For pure UI work, combine both: add yourself to `developers.json`, then run `python main.py --simulated-sensor` and `npm run dev`. Click **Authenticate**, then **Start**. Graphs show simulated data, and recordings are saved locally under `code/backend/tests/`.
+
+## Sensor Firmware
+
+The ESP32 firmware is [`arduino/ESP-32.txt`](arduino/ESP-32.txt). Flash it with the Arduino IDE (ESP32 board package, plus the Adafruit LSM6DS library for the ISM330DHCX IMUs). It samples EMG at 1 kHz on a hardware timer, reads both IMUs every 10th sample (100 Hz), and streams one packet per sample over Bluetooth Classic.
+
+Each packet is 37 bytes, little-endian. The format is defined twice, and the two must match: `SensorPacket` in the firmware, and [`code/backend/sensorPacket.py`](code/backend/sensorPacket.py), which the reader and the simulator share.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `sync` | uint16 | Always `0xA55A`; marks where a packet starts |
+| `seq` | uint32 | Sample number since boot, +1 every 1 ms |
+| `imu_fresh` | uint8 | Bit *i* set = IMU *i* was read on this sample |
+| `emg1`, `emg2` | uint16 | 12-bit ADC values |
+| `imu1`, `imu2` | 6 × int16 each | `ax, ay, az, gx, gy, gz`, raw counts |
+| `crc` | uint16 | CRC-16/CCITT-FALSE of every byte before it |
+
+The app only accepts a packet that starts with the sync marker and has a matching CRC. If it starts reading partway through a packet, or bytes are lost or corrupted, it drops the damaged packet (which becomes a gap in `seq`) and picks up again at the next good one.
+
+**Changing the packet:** keep the firmware and `sensorPacket.py` in step, and reflash every ESP32. If an ESP32 sends packets the app doesn't recognise, as with the firmware from before `seq` was added, the Port status shows **Sensor connected, but its data isn't recognised**, and nothing is recorded.
 
 ## The Desktop Executable
 
@@ -305,7 +349,7 @@ Most changes (editing backend Python, React components, CSS, adding routes) need
 | adds an npm package | Nothing: `npm ci` installs it during the build (make sure `package-lock.json` is committed). |
 | **reads** a non-Python file at runtime (an image, JSON, model, etc. in `code/backend/`) | Add it to `datas` in `packaging/EMG-IMU.spec`, and locate it at runtime with `sys._MEIPASS` when frozen (see `frontend_dist_dir()` in [`code/backend/Imports/paths.py`](code/backend/Imports/paths.py) for the pattern). Plain relative paths break in the packaged app. |
 | **writes** any file (new recordings, configs, caches) | Build the path from `data_dir()` or `recordings_dir()` in [`Imports/paths.py`](code/backend/Imports/paths.py). **Never** write relative to the working directory or next to `__file__`: it works from source but fails in the packaged app. |
-| changes the sensor packet format (firmware) | Update `PACKET_FORMAT` in both `bluetoothHandler.py` and `simulatedSensor.py`, so the simulator keeps matching the real sensor. |
+| changes the sensor packet format (firmware) | Update [`code/backend/sensorPacket.py`](code/backend/sensorPacket.py) to match. The reader and the simulator both use it. See [Sensor Firmware](#sensor-firmware). |
 | needs a new macOS permission (microphone, etc.) | Add the matching `NS…UsageDescription` key to `info_plist` in the spec, or macOS will deny access silently. |
 | calls the backend from the frontend | Use `requestFlask` / `createFlaskSocket` in `code/frontend/src/services/flask/`, never a hardcoded `http://127.0.0.1:5000`. The packaged app may use a different port if 5000 is taken. |
 | needs a `bionix-db` change | Release a new BionixDB version and bump the pin in `requirements.txt` first; see [Updating BionixDB](#updating-bionixdb). Builds (local and CI) always use the pinned version. |

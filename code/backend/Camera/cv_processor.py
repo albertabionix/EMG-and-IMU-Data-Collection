@@ -22,6 +22,10 @@ marker_state = {}
 THIGH_PROXIMAL, THIGH_DISTAL = 0, 1
 SHANK_PROXIMAL, SHANK_DISTAL = 2, 3
 
+# Markers recorded in the CVKAS CSV, in column order (one column group each).
+# Other ArUco ids the camera happens to see are ignored.
+CVKAS_MARKER_IDS = (THIGH_PROXIMAL, THIGH_DISTAL, SHANK_PROXIMAL, SHANK_DISTAL)
+
 def detect_aruco(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 

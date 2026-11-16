@@ -14,17 +14,39 @@ const uint8_t imuAddr[NUM_IMUS] = {0x6A, 0x6B};
 // --- 1000Hz Target Configuration ---
 #define SAMPLE_RATE_HZ 1000
 #define IMU_REFRESH_EVERY_N 10 // Reads IMUs at 100Hz (Every 10ms) to preserve ADC bandwidth
-#define CLASSIC_SEND_EVERY_N 1 // Send every acquired sample: 1000 Bluetooth Classic packets per second
+#define CLASSIC_SEND_EVERY_N 1 // Send every acquired sample: 1000 Bluetooth Classic packets per second.
+                               // Keep at 1: the app counts any gap in seq as a lost sample.
 
-// Compact Binary Structure (Total: 28 bytes)
+// Marks the start of every packet so the app can find packet boundaries in the
+// byte stream (and recognise this firmware). Sent little-endian: 0x5A 0xA5.
+#define PACKET_SYNC 0xA55A
+
+// Compact Binary Structure (Total: 37 bytes).
+// Must match code/backend/sensorPacket.py (PACKET_FORMAT "<HIBHH6h6hH").
 struct __attribute__((packed)) SensorPacket {
+  uint16_t sync;      // always PACKET_SYNC
+  uint32_t seq;       // sample number since boot: +1 every 1 ms tick (exact sample time; gaps = lost samples)
+  uint8_t imuFresh;   // bit i set = IMU i was read on this tick (every IMU_REFRESH_EVERY_N ticks)
   uint16_t emg1;
   uint16_t emg2;
   struct __attribute__((packed)) {
     int16_t ax, ay, az;
     int16_t gx, gy, gz;
   } imu[NUM_IMUS];
+  uint16_t crc;       // CRC-16/CCITT-FALSE of every byte before it; the app drops packets that don't match
 };
+
+// CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF). Same as crc16() in sensorPacket.py.
+uint16_t crc16(const uint8_t *data, size_t len) {
+  uint16_t crc = 0xFFFF;
+  for (size_t i = 0; i < len; i++) {
+    crc ^= (uint16_t)data[i] << 8;
+    for (int b = 0; b < 8; b++) {
+      crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : (crc << 1);
+    }
+  }
+  return crc;
+}
 
 BluetoothSerial SerialBT;
 
@@ -101,6 +123,7 @@ void setup() {
 void DataAcquisitionTask(void * pvParameters) {
   uint32_t tickCount = 0;
   SensorPacket currentPacket = {0};
+  currentPacket.sync = PACKET_SYNC;
   
   // Create real local event containers instead of passing NULL pointers
   sensors_event_t dummyAccel, dummyGyro, dummyTemp;
@@ -108,6 +131,8 @@ void DataAcquisitionTask(void * pvParameters) {
   while(1) {
     if (xSemaphoreTake(timerSemaphore, portMAX_DELAY) == pdTRUE) {
       tickCount++;
+      currentPacket.seq = tickCount;
+      currentPacket.imuFresh = 0;  // IMU values below are repeats unless refreshed this tick
 
       // Read analog EMG signals immediately (Takes ~10 microseconds)
       currentPacket.emg1 = analogRead(EMG1_PIN);
@@ -129,6 +154,8 @@ void DataAcquisitionTask(void * pvParameters) {
             currentPacket.imu[i].gx = ism[i].rawGyroX;
             currentPacket.imu[i].gy = ism[i].rawGyroY;
             currentPacket.imu[i].gz = ism[i].rawGyroZ;
+
+            currentPacket.imuFresh |= (1 << i);
           }
         }
       }
@@ -151,9 +178,10 @@ void BleTransmissionTask(void * pvParameters) {
       Serial.print(txPacket.emg1); Serial.print(",");
       Serial.println(txPacket.emg2);
 
-      // Ship compact 28-byte binary payload over Bluetooth Classic SPP
+      // Ship compact 37-byte binary payload over Bluetooth Classic SPP
       classicTickCount++;
       if (SerialBT.hasClient() && classicTickCount % CLASSIC_SEND_EVERY_N == 0) {
+        txPacket.crc = crc16((const uint8_t*)&txPacket, sizeof(SensorPacket) - sizeof(txPacket.crc));
         SerialBT.write((const uint8_t*)&txPacket, sizeof(SensorPacket));
       }
     }

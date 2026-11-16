@@ -44,9 +44,10 @@ def start_recording_route():
 
 @app.route('/record/stop', methods=['POST'])
 def stop_recording_route():
-    Camera.recording.stop_recording()
+    samples = Camera.recording.stop_recording()
 
-    return jsonify({"recording": False})
+    # samples: sensor sample counts for this recording, incl. how many were lost.
+    return jsonify({"recording": False, "samples": samples})
 
 
 @app.route('/record/discard', methods=['POST'])
@@ -133,6 +134,7 @@ def list_serial_ports():
         'current': state.comport,
         'connected': simulated or (state.ser is not None and state.ser.is_open),
         'simulated': simulated,
+        'warning': state.sensor_warning,  # e.g. ESP32 running old firmware
         'suggested': ports.guess_port(),
     })
 
