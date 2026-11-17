@@ -180,7 +180,7 @@ To list ports by hand, run `python -m serial.tools.list_ports` (venv active), or
 
 Drive uploads go through [BionixDB](https://github.com/albertabionix/bionix-db), a separate Alberta Bionix library. You don't need to clone it: `pip install -r requirements.txt` installs it from GitHub at the version pinned in `requirements.txt`:
 ```
-bionixdb @ git+https://github.com/albertabionix/bionix-db.git@v0.2.0
+bionixdb @ git+https://github.com/albertabionix/bionix-db.git@v0.2.1
 ```
 It needs no credentials file; it ships with a bundled OAuth client. To use a newer version or test unreleased BionixDB changes, see [Updating BionixDB](#updating-bionixdb).
 
@@ -315,7 +315,7 @@ Most changes (editing backend Python, React components, CSS, adding routes) need
 BionixDB changes reach this app only through the version pinned in `requirements.txt`. Pushing to bionix-db's `main` alone changes nothing here, so a half-finished BionixDB change can't slip into an app release.
 
 1. **Make and release the change in bionix-db:** merge it, bump `version` in its `setup.py`, then tag and push `vX.Y.Z` (full steps are in [bionix-db's README](https://github.com/albertabionix/bionix-db#releasing-a-new-version)).
-2. **Bump the pin here** in `requirements.txt`, for example `...bionix-db.git@v0.2.0` → `@v0.3.0`, and reinstall:
+2. **Bump the pin here** in `requirements.txt`, for example `...bionix-db.git@v0.2.1` → `@v0.3.0`, and reinstall:
    ```bash
    pip install -r requirements.txt
    ```
